@@ -14,6 +14,10 @@ Pages (Next.js)  →  Worker (Hono + D1/KV/R2)  →  Space (FastAPI + Python)
    frontend            API, jobs, storage           all analysis
 ```
 
+**Live:** [https://watermark-finder.pages.dev](https://watermark-finder.pages.dev) · API [https://watermark-finder-api.pennypicher-api.workers.dev](https://watermark-finder-api.pennypicher-api.workers.dev/api/health)
+(the analysis engine is not deployed yet, so analyses will not run — see
+[`docs/deployment.md`](docs/deployment.md))
+
 ---
 
 ## What it does

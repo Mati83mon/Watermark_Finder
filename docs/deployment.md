@@ -6,6 +6,18 @@ and the frontend needs the Worker URL.
 
 Total cost: nothing. No payment method is required for any of the three.
 
+## Live environment
+
+| Component | URL | State |
+| --- | --- | --- |
+| Frontend (Pages) | https://watermark-finder.pages.dev | deployed |
+| API (Worker) | https://watermark-finder-api.pennypicher-api.workers.dev | deployed, cron `*/5 * * * *` active |
+| Engine (Space) | https://mati83moni-text-provenance-lab.hf.space | **not created yet** — see step 1 |
+
+Until the Space exists, `/api/health` reports `degraded` with
+`"engine": "unreachable"`. The UI renders and the API answers; only the analysis
+itself is unavailable. That is the designed behaviour, not a fault.
+
 ---
 
 ## 1. Analysis Space (Hugging Face)
@@ -13,8 +25,13 @@ Total cost: nothing. No payment method is required for any of the three.
 ### Create it
 
 1. <https://huggingface.co/new-space>
-2. Name: `text-provenance-lab` · SDK: **Docker** · Hardware: **CPU basic (free)**
-   · Visibility: your choice.
+2. Owner: `Mati83moni` · Name: `text-provenance-lab` · SDK: **Docker** ·
+   Hardware: **CPU basic (free)** · Visibility: your choice.
+
+The name matters: the Worker is already configured for
+`https://mati83moni-text-provenance-lab.hf.space`, which is the host Hugging Face
+derives from `<owner>-<space>`. A different name means updating
+`ANALYSIS_SPACE_URL` in `worker/wrangler.toml` and redeploying.
 
 ### Configure
 
@@ -49,7 +66,7 @@ huggingface-cli upload your-username/text-provenance-lab analysis-space . \
 ### Verify
 
 ```bash
-curl https://your-username-text-provenance-lab.hf.space/health
+curl https://mati83moni-text-provenance-lab.hf.space/health
 # {"status":"ok","version":"1.0.0","schema_version":"1.0"}
 ```
 
@@ -95,8 +112,14 @@ before deploying.
 
 ### Secrets
 
+Both are **already set** on the deployed Worker. `ANALYSIS_SPACE_TOKEN` was
+generated when the Worker was deployed and must be mirrored onto the Space as
+`TPL_API_TOKEN`; until the two match, the engine will reject the Worker with 401.
+
+To set or rotate them:
+
 ```bash
-npx wrangler secret put ANALYSIS_SPACE_TOKEN   # the TPL_API_TOKEN from step 1
+npx wrangler secret put ANALYSIS_SPACE_TOKEN   # must equal TPL_API_TOKEN on the Space
 npx wrangler secret put SESSION_SECRET         # openssl rand -base64 32
 ```
 
@@ -115,18 +138,22 @@ npx wrangler deploy
 ### Verify
 
 ```bash
-curl https://watermark-finder-api.<subdomain>.workers.dev/api/health
+curl https://watermark-finder-api.pennypicher-api.workers.dev/api/health
 ```
 
 `"status":"ok"` means the Worker reached both D1 and the Space. `"degraded"` with
 `"engine":"unreachable"` usually means the Space is asleep — call it once
 directly and try again.
 
-### Set CORS
+### CORS
 
-Set `ALLOWED_ORIGINS` in `wrangler.toml` to your Pages domain once step 3 gives
-you one, then redeploy. Leaving it as `*` lets any site call your Worker and
-spend your free-tier budget.
+`ALLOWED_ORIGINS` is set to `https://watermark-finder.pages.dev` and verified: a preflight from that origin
+is answered, and a request from any other origin gets no
+`access-control-allow-origin` header at all.
+
+Pages preview deployments get random subdomains (`<hash>.watermark-finder.pages.dev`)
+which are therefore blocked by design. Add them explicitly if you want previews to
+reach the production API.
 
 ---
 
@@ -136,12 +163,15 @@ spend your free-tier budget.
 
 Workers & Pages → Create → Pages → Connect to Git:
 
+The project `watermark-finder` already exists (production branch `main`). To
+connect it to Git for automatic builds:
+
 | Setting | Value |
 | --- | --- |
 | Build command | `npm ci && npm run build --workspace @wf/web` |
 | Build output directory | `web/out` |
 | Root directory | *(repository root)* |
-| Environment variable | `NEXT_PUBLIC_API_BASE_URL` = your Worker URL |
+| Environment variable | `NEXT_PUBLIC_API_BASE_URL` = `https://watermark-finder-api.pennypicher-api.workers.dev` |
 
 `NEXT_PUBLIC_API_BASE_URL` is baked in at build time; changing it needs a
 rebuild. The Settings page can override it per browser, which is handy for
