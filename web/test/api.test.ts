@@ -207,3 +207,73 @@ async function createSessionWithStub() {
   stubFetch(() => Response.json(SESSION, { status: 201 }));
   await createSession();
 }
+
+describe('concurrent session bootstrap', () => {
+  it('mints exactly one workspace when parallel requests all lack a token', async () => {
+    // Reproduces what the dashboard does: two authenticated requests issued
+    // together on a first visit. Each used to observe "no token" and bootstrap
+    // its own workspace, leaving an orphan behind.
+    const calls = stubFetch((call) => {
+      if (call.url.endsWith('/api/session')) {
+        return Response.json(
+          { ...SESSION, workspace_id: `w${calls.length}`, token: `w${calls.length}.sig` },
+          { status: 201 },
+        );
+      }
+      return Response.json({ items: [], total: 0, limit: 20, offset: 0 });
+    });
+
+    await Promise.all([api.listAnalyses(), api.stats(), api.listReports()]);
+
+    const sessionCalls = calls.filter((call) => call.url.endsWith('/api/session'));
+    expect(sessionCalls).toHaveLength(1);
+
+    // Every request must carry the one token that was actually stored.
+    const stored = getToken();
+    const authed = calls.filter((call) => !call.url.endsWith('/api/session'));
+    expect(authed).toHaveLength(3);
+    for (const call of authed) {
+      expect(call.headers.get('authorization')).toBe(`Bearer ${stored}`);
+    }
+  });
+
+  it('does not cache a failed bootstrap', async () => {
+    let attempt = 0;
+    stubFetch((call) => {
+      if (call.url.endsWith('/api/session')) {
+        attempt += 1;
+        return attempt === 1
+          ? Response.json({ error: 'boom', message: 'nope' }, { status: 500 })
+          : Response.json(SESSION, { status: 201 });
+      }
+      return Response.json({ items: [], total: 0, limit: 20, offset: 0 });
+    });
+
+    await expect(api.listAnalyses()).rejects.toMatchObject({ status: 500 });
+    // A second attempt must retry the bootstrap rather than reuse the rejection.
+    await expect(api.listAnalyses()).resolves.toMatchObject({ total: 0 });
+  });
+
+  it('refreshes the workspace only once when parallel requests are all rejected', async () => {
+    await createSessionWithStub();
+    const rejected = new Set<string>();
+    const calls = stubFetch((call) => {
+      if (call.url.endsWith('/api/session')) {
+        return Response.json({ ...SESSION, token: 'fresh.sig' }, { status: 201 });
+      }
+      if (!rejected.has(call.url + calls.length)) {
+        rejected.add(call.url + calls.length);
+        const auth = call.headers.get('authorization');
+        if (auth === 'Bearer w123.signature') {
+          return Response.json({ error: 'unauthorized', message: 'stale' }, { status: 401 });
+        }
+      }
+      return Response.json({ items: [], total: 0, limit: 20, offset: 0 });
+    });
+
+    await Promise.all([api.listAnalyses(), api.listReports()]);
+
+    expect(calls.filter((call) => call.url.endsWith('/api/session'))).toHaveLength(1);
+    expect(getToken()).toBe('fresh.sig');
+  });
+});

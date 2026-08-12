@@ -140,8 +140,17 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   if (response.status === 401 && !anonymous) {
     // The workspace token was rejected - most likely the Worker's signing key
     // rotated. Start a fresh workspace and retry once.
-    clearSession();
-    await createSession();
+    //
+    // Only the request that used the *current* token is allowed to replace it:
+    // when several requests are rejected together, the first refreshes and the
+    // rest simply retry with whatever it produced, rather than each discarding
+    // the previous one's fresh workspace.
+    if (getToken() === token) {
+      clearSession();
+      await createSession();
+    } else if (!getToken()) {
+      await createSession();
+    }
     const retryHeaders = new Headers(headers);
     const fresh = getToken();
     if (fresh) retryHeaders.set('authorization', `Bearer ${fresh}`);
@@ -161,12 +170,35 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   return (await response.json()) as T;
 }
 
+/**
+ * In-flight bootstrap, shared by every concurrent caller.
+ *
+ * Without this, parallel requests each observe "no token" and each mint their
+ * own workspace: the dashboard alone fires two requests at once, so a first
+ * visit created two workspaces, the second token overwrote the first in storage,
+ * and the request holding the losing token wrote into a workspace the browser no
+ * longer had. Single-flighting the call makes the first visit deterministic.
+ */
+let pendingSession: Promise<Session> | null = null;
+
 export async function createSession(): Promise<Session> {
-  const response = await fetch(`${getBaseUrl()}/api/session`, { method: 'POST' });
-  if (!response.ok) throw await toError(response);
-  const session = (await response.json()) as Session;
-  storeSession(session);
-  return session;
+  if (pendingSession) return pendingSession;
+
+  pendingSession = (async () => {
+    const response = await fetch(`${getBaseUrl()}/api/session`, { method: 'POST' });
+    if (!response.ok) throw await toError(response);
+    const session = (await response.json()) as Session;
+    storeSession(session);
+    return session;
+  })();
+
+  try {
+    return await pendingSession;
+  } finally {
+    // Cleared on both paths: a failed bootstrap must not be cached, and a
+    // successful one is now visible through getToken().
+    pendingSession = null;
+  }
 }
 
 export const api = {
