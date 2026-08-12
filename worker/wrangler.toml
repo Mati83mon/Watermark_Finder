@@ -40,12 +40,12 @@ MAX_ATTEMPTS = "3"
 [[d1_databases]]
 binding = "DB"
 database_name = "watermark-finder"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "f18e189b-5f0b-4224-ae12-cc75e3f66217"
 migrations_dir = "migrations"
 
 [[kv_namespaces]]
 binding = "CACHE"
-id = "REPLACE_WITH_KV_NAMESPACE_ID"
+id = "9e96038b407648e6be442c34b8c6468f"
 
 [[r2_buckets]]
 binding = "BUCKET"
@@ -59,6 +59,14 @@ crons = ["*/5 * * * *"]
 # ---------------------------------------------------------------------------
 # Preview environment: separate D1, KV and R2 so preview traffic can never
 # touch production data.
+#
+# NOT PROVISIONED. The production bindings above are real; these are still
+# placeholders, so `wrangler deploy --env preview` will fail until you create
+# the three preview resources and paste their ids in:
+#
+#   wrangler d1 create watermark-finder-preview
+#   wrangler kv namespace create CACHE --env preview
+#   wrangler r2 bucket create watermark-finder-preview
 # ---------------------------------------------------------------------------
 [env.preview]
 name = "watermark-finder-api-preview"

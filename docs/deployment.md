@@ -62,6 +62,21 @@ takes 30–60 s to wake; the Worker retries with backoff and the UI says so.
 
 ### Create the resources
 
+**Already provisioned** on the project's Cloudflare account, with their ids
+committed in `worker/wrangler.toml`:
+
+| Resource | Name | Id |
+| --- | --- | --- |
+| D1 | `watermark-finder` | `f18e189b-5f0b-4224-ae12-cc75e3f66217` (WEUR) |
+| KV | `watermark-finder-cache` | `9e96038b407648e6be442c34b8c6468f` |
+| R2 | `watermark-finder` | *(addressed by name)* |
+
+The `0001_init.sql` migration has been applied to the remote database and
+recorded in `d1_migrations`, so `wrangler d1 migrations apply` is a no-op rather
+than a re-run.
+
+To provision a fresh set from scratch instead:
+
 ```bash
 npm install
 cd worker
@@ -72,12 +87,11 @@ npx wrangler kv namespace create CACHE
 npx wrangler r2 bucket create watermark-finder
 ```
 
-Each command prints an id. Put them in `wrangler.toml`, replacing
-`REPLACE_WITH_D1_DATABASE_ID` and `REPLACE_WITH_KV_NAMESPACE_ID`, and set
-`ANALYSIS_SPACE_URL` to your Space URL (no trailing slash).
+Each command prints an id; paste them into `wrangler.toml`. Repeat with
+`-preview` names for `[env.preview]`, which is still unprovisioned.
 
-Repeat with `-preview` names for `[env.preview]` if you want an isolated preview
-environment.
+Either way, set `ANALYSIS_SPACE_URL` to your Space URL (no trailing slash)
+before deploying.
 
 ### Secrets
 
@@ -94,7 +108,7 @@ minting a new workspace, but their history becomes unreachable.
 ### Migrate and deploy
 
 ```bash
-npx wrangler d1 migrations apply watermark-finder --remote
+npx wrangler d1 migrations apply watermark-finder --remote   # no-op if already applied
 npx wrangler deploy
 ```
 
