@@ -1,0 +1,32 @@
+[project]
+name = "text-provenance-lab"
+version = "1.0.0"
+description = "Watermark and text-provenance analysis engine (Hugging Face Space)"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = [".venv", "models", "data"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM"]
+ignore = [
+    "B008",   # FastAPI dependency defaults are idiomatic
+    "SIM108", # ternaries are not always clearer
+    # `ruff format` owns code line width. What is left for E501 to flag is
+    # documentation and rationale strings, which are worse when broken up.
+    "E501",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = [
+    "ignore::DeprecationWarning:starlette.*",
+    "ignore:.*disp.*iprint.*:DeprecationWarning",
+]

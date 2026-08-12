@@ -1,0 +1,90 @@
+#:schema node_modules/wrangler/config-schema.json
+#
+# Watermark Finder - Cloudflare Worker API.
+#
+# Before the first deploy, create the resources and paste the ids below:
+#
+#   wrangler d1 create watermark-finder
+#   wrangler kv namespace create CACHE
+#   wrangler r2 bucket create watermark-finder
+#   wrangler d1 migrations apply watermark-finder --remote
+#
+# Secrets (never put these in this file):
+#
+#   wrangler secret put ANALYSIS_SPACE_TOKEN   # must match TPL_API_TOKEN on the Space
+#   wrangler secret put SESSION_SECRET         # openssl rand -base64 32
+
+name = "watermark-finder-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-15"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[observability]
+enabled = true
+
+[vars]
+ENVIRONMENT = "production"
+# Public URL of the Hugging Face Space, without a trailing slash.
+ANALYSIS_SPACE_URL = "https://REPLACE-ME.hf.space"
+# Browser origins allowed to call the API. Replace with the Pages domain.
+ALLOWED_ORIGINS = "https://watermark-finder.pages.dev"
+RATE_LIMIT_REQUESTS = "60"
+RATE_LIMIT_WINDOW = "60"
+DAILY_ANALYSIS_LIMIT = "200"
+MAX_TEXT_CHARS = "200000"
+MAX_UPLOAD_BYTES = "10485760"
+SPACE_TIMEOUT_MS = "45000"
+MAX_ATTEMPTS = "3"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "watermark-finder"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+migrations_dir = "migrations"
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "watermark-finder"
+
+# Retry sweep for analyses that never completed. Every 5 minutes is well inside
+# the free plan's cron allowance and bounded by MAX_ATTEMPTS.
+[triggers]
+crons = ["*/5 * * * *"]
+
+# ---------------------------------------------------------------------------
+# Preview environment: separate D1, KV and R2 so preview traffic can never
+# touch production data.
+# ---------------------------------------------------------------------------
+[env.preview]
+name = "watermark-finder-api-preview"
+
+[env.preview.vars]
+ENVIRONMENT = "preview"
+ANALYSIS_SPACE_URL = "https://REPLACE-ME.hf.space"
+ALLOWED_ORIGINS = "*"
+RATE_LIMIT_REQUESTS = "30"
+RATE_LIMIT_WINDOW = "60"
+DAILY_ANALYSIS_LIMIT = "50"
+MAX_TEXT_CHARS = "200000"
+MAX_UPLOAD_BYTES = "10485760"
+SPACE_TIMEOUT_MS = "45000"
+MAX_ATTEMPTS = "2"
+
+[[env.preview.d1_databases]]
+binding = "DB"
+database_name = "watermark-finder-preview"
+database_id = "REPLACE_WITH_PREVIEW_D1_DATABASE_ID"
+migrations_dir = "migrations"
+
+[[env.preview.kv_namespaces]]
+binding = "CACHE"
+id = "REPLACE_WITH_PREVIEW_KV_NAMESPACE_ID"
+
+[[env.preview.r2_buckets]]
+binding = "BUCKET"
+bucket_name = "watermark-finder-preview"

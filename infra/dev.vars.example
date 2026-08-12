@@ -1,0 +1,13 @@
+# Copy to worker/.dev.vars for local development (git-ignored).
+# In production these are Wrangler secrets, set with `wrangler secret put`.
+
+# Where the analysis engine is running locally.
+ANALYSIS_SPACE_URL = "http://127.0.0.1:7860"
+
+# Must match TPL_API_TOKEN on the engine. Leave both unset to run the engine open.
+ANALYSIS_SPACE_TOKEN = "local-dev-token"
+
+# Signs anonymous workspace tokens. Any string works locally; in production use
+# `openssl rand -base64 32`. Without it the Worker falls back to a known
+# development key and /api/health reports the degraded state.
+SESSION_SECRET = "local-dev-session-secret"

@@ -1,0 +1,19 @@
+{
+  "name": "watermark-finder",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Text provenance and watermark analysis - Cloudflare Pages + Workers + Hugging Face Space",
+  "license": "MIT",
+  "workspaces": ["shared", "worker", "web"],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "dev:worker": "npm run dev --workspace worker",
+    "dev:web": "npm run dev --workspace web"
+  }
+}

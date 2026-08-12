@@ -1,0 +1,26 @@
+# Runtime dependencies for the Hugging Face Space (CPU Basic).
+# Everything here is free and installs without a GPU.
+
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+python-multipart==0.0.20
+
+# Document extraction for /extract
+pypdf==5.1.0
+python-docx==1.1.2
+
+# Needed only to load a trained style model (models/style_clf.joblib).
+# The service falls back to the documented prior model when these are absent.
+scikit-learn==1.6.0
+joblib==1.4.2
+numpy==2.2.1
+
+# Optional surprisal analysis (TPL_ENABLE_PERPLEXITY=1). Uncomment to enable;
+# adds roughly 700 MB to the image, which still fits the free 50 GB disk but
+# slows cold starts noticeably.
+# torch==2.5.1
+# transformers==4.47.1
+
+# Optional manual-testing UI (TPL_ENABLE_GRADIO=1).
+# gradio==5.9.1

@@ -1,0 +1,31 @@
+{
+  "name": "@wf/worker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cloudflare Worker API for Watermark Finder",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "migrate:local": "wrangler d1 migrations apply watermark-finder --local",
+    "migrate:remote": "wrangler d1 migrations apply watermark-finder --remote",
+    "e2e": "tsx test/e2e.manual.ts"
+  },
+  "dependencies": {
+    "@wf/shared": "*",
+    "hono": "^4.6.14"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241218.0",
+    "@types/node": "^22.20.1",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8",
+    "wrangler": "^3.99.0",
+    "tsx": "^4.19.2"
+  }
+}

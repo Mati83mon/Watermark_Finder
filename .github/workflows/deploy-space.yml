@@ -1,0 +1,79 @@
+name: Deploy analysis Space
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'analysis-space/**'
+      - '.github/workflows/deploy-space.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-space
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Push to Hugging Face
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r analysis-space/requirements-dev.txt
+
+      - name: Test before deploying
+        working-directory: analysis-space
+        run: |
+          ruff check tpl app.py train.py tests
+          pytest
+
+      - name: Push the Space
+        env:
+          # Repository secret: a Hugging Face write token.
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          # Repository variable: e.g. "your-username/text-provenance-lab".
+          HF_SPACE_ID: ${{ vars.HF_SPACE_ID }}
+        run: |
+          if [ -z "$HF_TOKEN" ] || [ -z "$HF_SPACE_ID" ]; then
+            echo "HF_TOKEN secret and HF_SPACE_ID variable must be set" >&2
+            exit 1
+          fi
+
+          pip install "huggingface_hub[cli]==0.27.0"
+
+          # Uploads the contents of analysis-space/ to the Space repo root.
+          # --delete removes files that no longer exist locally, so a renamed or
+          # deleted module never lingers in the running Space.
+          huggingface-cli upload "$HF_SPACE_ID" analysis-space . \
+            --repo-type space \
+            --token "$HF_TOKEN" \
+            --commit-message "Deploy ${{ github.sha }}" \
+            --delete "*"
+
+      - name: Wait for the Space to come back up
+        env:
+          SPACE_URL: ${{ vars.SPACE_URL }}
+        run: |
+          if [ -z "$SPACE_URL" ]; then
+            echo "SPACE_URL variable not set; skipping the post-deploy check."
+            exit 0
+          fi
+          echo "Waiting for $SPACE_URL/health (a rebuild can take several minutes)"
+          for _ in $(seq 1 60); do
+            if curl -sf "$SPACE_URL/health"; then
+              echo
+              echo "Space is serving."
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "Space did not become healthy in 15 minutes. Check the build logs." >&2
+          exit 1
