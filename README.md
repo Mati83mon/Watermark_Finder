@@ -14,9 +14,12 @@ Pages (Next.js)  →  Worker (Hono + D1/KV/R2)  →  Space (FastAPI + Python)
    frontend            API, jobs, storage           all analysis
 ```
 
-**Live:** [https://watermark-finder.pages.dev](https://watermark-finder.pages.dev) · API [https://watermark-finder-api.pennypicher-api.workers.dev](https://watermark-finder-api.pennypicher-api.workers.dev/api/health)
-(the analysis engine is not deployed yet, so analyses will not run — see
-[`docs/deployment.md`](docs/deployment.md))
+**Live:** [https://watermark-finder.pages.dev](https://watermark-finder.pages.dev) · API [health](https://watermark-finder-api.pennypicher-api.workers.dev/api/health) · engine on a Hugging Face Space
+
+One caveat on "free": Hugging Face now requires a PRO subscription to host a
+Docker Space on free `cpu-basic`, so the analysis engine is the one component
+that is no longer free to host as designed. Everything on Cloudflare stays
+within free allowances. See [`docs/deployment.md`](docs/deployment.md).
 
 ---
 

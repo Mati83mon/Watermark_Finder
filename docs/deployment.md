@@ -12,11 +12,35 @@ Total cost: nothing. No payment method is required for any of the three.
 | --- | --- | --- |
 | Frontend (Pages) | https://watermark-finder.pages.dev | deployed |
 | API (Worker) | https://watermark-finder-api.pennypicher-api.workers.dev | deployed, cron `*/5 * * * *` active |
-| Engine (Space) | https://mati83moni-text-provenance-lab.hf.space | **not created yet** — see step 1 |
+| Engine (Space) | https://mati83moni-text-provenance-lab.hf.space | deployed, running |
 
-Until the Space exists, `/api/health` reports `degraded` with
-`"engine": "unreachable"`. The UI renders and the API answers; only the analysis
-itself is unavailable. That is the designed behaviour, not a fault.
+All three are live and `/api/health` reports `"status": "ok"`. Verified end to
+end in production: a document carrying a `wm:PROD-TEST-2026` payload in Unicode
+tag characters came back as `payload_recovered` with the message decoded intact,
+and the source text round-tripped through R2 byte for byte.
+
+### Hardware is not free
+
+Hugging Face no longer hosts Docker Spaces on free `cpu-basic`:
+
+> Static Spaces are free for everyone, but hosting Gradio and Docker Spaces on
+> free cpu-basic requires a PRO subscription.
+
+So a Docker Space costs either a PRO subscription or paid hardware. This Space
+currently runs on `cpu-upgrade` (8 vCPU / 32 GB) at $0.03 per hour of uptime,
+sleeping after 1 hour of inactivity; sleep is not billed.
+
+The engine does not need that machine - a full forensic analysis of a 750
+character document takes under 6 ms - so the options are:
+
+| Option | Cost | Note |
+| --- | --- | --- |
+| Keep `cpu-upgrade` | $0.03/h awake | Shorten the sleep timer to cut idle cost |
+| PRO subscription | $9/month | Unlocks free `cpu-basic`, which is ample |
+| Host the engine elsewhere | free tiers exist | Only `ANALYSIS_SPACE_URL` changes; nothing else moves |
+
+The rest of the stack (Pages, Workers, D1, KV, R2) remains entirely within free
+allowances.
 
 ---
 
@@ -26,7 +50,10 @@ itself is unavailable. That is the designed behaviour, not a fault.
 
 1. <https://huggingface.co/new-space>
 2. Owner: `Mati83moni` · Name: `text-provenance-lab` · SDK: **Docker** ·
-   Hardware: **CPU basic (free)** · Visibility: your choice.
+   Visibility: your choice.
+
+Hardware: see "Hardware is not free" above - `cpu-basic` requires PRO for Docker
+Spaces, so the choice is a subscription or paid hardware.
 
 The name matters: the Worker is already configured for
 `https://mati83moni-text-provenance-lab.hf.space`, which is the host Hugging Face
@@ -41,6 +68,10 @@ Settings → Variables and secrets:
 | --- | --- | --- |
 | Secret | `TPL_API_TOKEN` | `openssl rand -base64 32` — keep it; the Worker needs the same value |
 | Variable | `TPL_CORS_ORIGINS` | Your Pages domain, or leave unset while testing |
+
+The secret's **name is the environment variable name** the engine reads. A
+secret under any other name is invisible to the application, `TPL_API_TOKEN`
+stays empty, and the engine serves `/analyze` to anyone who knows the URL.
 
 Optional: `TPL_ENABLE_PERPLEXITY=1` also requires uncommenting `torch` and
 `transformers` in `analysis-space/requirements.txt`. It adds ~700 MB to the image
@@ -69,6 +100,9 @@ huggingface-cli upload your-username/text-provenance-lab analysis-space . \
 curl https://mati83moni-text-provenance-lab.hf.space/health
 # {"status":"ok","version":"1.0.0","schema_version":"1.0"}
 ```
+
+`README.md` front matter drives the Space configuration, and Hugging Face
+rejects a commit whose `short_description` exceeds 60 characters.
 
 The first build takes several minutes. A free Space sleeps after ~48 h idle and
 takes 30–60 s to wake; the Worker retries with backoff and the UI says so.

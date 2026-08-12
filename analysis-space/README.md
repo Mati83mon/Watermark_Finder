@@ -7,7 +7,7 @@ sdk: docker
 app_port: 7860
 pinned: false
 license: mit
-short_description: Watermark and text-provenance analysis engine (CPU, no external APIs)
+short_description: Watermark and text-provenance analysis engine
 ---
 
 # text-provenance-lab
