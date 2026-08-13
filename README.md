@@ -214,10 +214,20 @@ repository shows a green CI badge and no phantom deployment errors.
 
 Everything on Cloudflare — Pages, Workers, D1, KV, R2 — stays inside free
 allowances. One caveat: Hugging Face no longer hosts Docker Spaces on free
-`cpu-basic`, so the analysis engine needs either a PRO subscription or paid
-hardware. [`docs/deployment.md`](docs/deployment.md) lays out the options; the
-engine itself needs very little, since a full forensic analysis of a 750-character
-document takes under 6 ms.
+`cpu-basic`, and the restriction covers downgrading an existing Space, not just
+creating one — the API rejects it outright without a PRO subscription. So the
+engine needs either PRO or paid hardware.
+
+That is a billing rule, not a resource requirement. Measured on the deployed
+code:
+
+```
+RSS after boot            49.3 MB     # the free 16 GB tier is ~330x this
+forensic, 1.4 kB           8.2 ms     # uvicorn --workers 1, so 2 vCPU is ample
+```
+
+[`docs/deployment.md`](docs/deployment.md) has the exact API error and the four
+options.
 
 ---
 

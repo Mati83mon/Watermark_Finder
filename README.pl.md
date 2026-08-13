@@ -216,10 +216,19 @@ widmowych błędów wdrożenia.
 
 Wszystko na Cloudflare — Pages, Workers, D1, KV, R2 — mieści się w darmowych
 limitach. Jedno zastrzeżenie: Hugging Face nie hostuje już Docker Spaces na
-darmowym `cpu-basic`, więc silnik analizy wymaga albo subskrypcji PRO, albo
-płatnego hardware. [`docs/deployment.md`](docs/deployment.md) rozpisuje opcje;
-sam silnik potrzebuje niewiele, bo pełna analiza forensic dokumentu o długości
-750 znaków zajmuje poniżej 6 ms.
+darmowym `cpu-basic`, a ograniczenie obejmuje też **zejście** istniejącego
+Space'a na darmowy tier, nie tylko zakładanie nowego — API odrzuca to wprost bez
+subskrypcji PRO. Silnik wymaga więc albo PRO, albo płatnego hardware.
+
+To reguła rozliczeniowa, nie wymaganie zasobowe. Zmierzone na wdrożonym kodzie:
+
+```
+RSS po starcie            49.3 MB     # darmowe 16 GB to ~330x tyle
+forensic, 1.4 kB           8.2 ms     # uvicorn --workers 1, więc 2 vCPU wystarczą
+```
+
+[`docs/deployment.md`](docs/deployment.md) zawiera dokładny błąd z API i cztery
+możliwe opcje.
 
 ---
 

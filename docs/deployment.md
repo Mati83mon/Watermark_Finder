@@ -30,14 +30,49 @@ So a Docker Space costs either a PRO subscription or paid hardware. This Space
 currently runs on `cpu-upgrade` (8 vCPU / 32 GB) at $0.03 per hour of uptime,
 sleeping after 1 hour of inactivity; sleep is not billed.
 
-The engine does not need that machine - a full forensic analysis of a 750
-character document takes under 6 ms - so the options are:
+The restriction covers **downgrading**, not just creating. The Space settings
+page offers `CPU basic · 2 vCPU · 16 GB · FREE` as a selectable option, but the
+API rejects it on a non-PRO account:
+
+```console
+$ curl -X POST -H "authorization: Bearer $HF_TOKEN" \
+    -d '{"flavor":"cpu-basic"}' \
+    https://huggingface.co/api/spaces/<owner>/<space>/hardware
+
+{"error":"Without a PRO subscription, you can't downgrade this Space to
+cpu-basic. Pause it instead to stop hardware charges, or subscribe."}
+```
+
+The Space is unaffected by a rejected request - it stays `RUNNING` on its
+current hardware - so this is safe to try before committing to a plan.
+
+The engine does not need that machine. Measured on the deployed code:
+
+```
+RSS after boot              49.3 MB      # 16 GB tier is ~330x this
+RSS peak, 52 kB document    52.7 MB
+forensic, 1.4 kB             8.2 ms      # uvicorn --workers 1, so 2 vCPU is ample
+forensic, 52 kB            321   ms
+```
+
+No torch, no transformers - both are commented out in `requirements.txt`, and
+`distilgpt2` appears in the Space metadata only because the disabled perplexity
+module names it. The runtime is FastAPI plus scikit-learn. `Dockerfile` has
+targeted `cpu-basic` from the first commit; `cpu-upgrade` is forced by Hugging
+Face's plan rules, not by anything this code does.
+
+The options:
 
 | Option | Cost | Note |
 | --- | --- | --- |
-| Keep `cpu-upgrade` | $0.03/h awake | Shorten the sleep timer to cut idle cost |
+| Keep `cpu-upgrade` | $0.03/h awake | Shortening the sleep timer cuts idle cost, at the price of more cold starts |
 | PRO subscription | $9/month | Unlocks free `cpu-basic`, which is ample |
+| Pause the Space | free | Stops billing, but the engine is unreachable and the app cannot analyse anything |
 | Host the engine elsewhere | free tiers exist | Only `ANALYSIS_SPACE_URL` changes; nothing else moves |
+
+A cold start is not a failure case: the Worker retries a stalled job on a
+five-minute cron until `MAX_ATTEMPTS`, and `/api/health` treats a 503 from a
+sleeping Space as "dependency asleep" rather than an outage.
 
 The rest of the stack (Pages, Workers, D1, KV, R2) remains entirely within free
 allowances.
