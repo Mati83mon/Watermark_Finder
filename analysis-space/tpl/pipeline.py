@@ -52,6 +52,26 @@ MODE_SETTINGS: dict[str, dict[str, Any]] = {
 #: How much weight the optional surprisal signal gets when it is available.
 PERPLEXITY_BLEND = 0.3
 
+#: Containers that cannot carry zero-width characters through to extraction.
+#:
+#: PDF stores positioned glyphs, not a character stream, so a codepoint with no
+#: glyph simply has nothing to store. Measured directly: a PDF built with
+#: U+200B and U+200D in its text extracts back with zero of either. A clean
+#: covert-channel result on such a source therefore carries no information, and
+#: saying so is the difference between a useful answer and a misleading one.
+LOSSY_SOURCE_FORMATS: dict[str, str] = {
+    "pdf": (
+        "The text came from a PDF. PDF cannot carry zero-width or tag characters "
+        "through extraction, so a clean covert-channel result here proves nothing "
+        "about the original document. Submit the text directly, or as .txt or "
+        ".docx, to test for hidden characters."
+    ),
+    "html": (
+        "The text came from HTML. Markup stripping can drop invisible characters, "
+        "so a clean covert-channel result is weaker evidence than it looks."
+    ),
+}
+
 
 class AnalysisError(ValueError):
     """Raised for input the pipeline refuses to process."""
@@ -134,8 +154,14 @@ def analyse(
     mode: Mode = "forensic",
     *,
     model: StyleModel | None = None,
+    source_format: str | None = None,
 ) -> dict[str, Any]:
-    """Run the full analysis and return the API payload."""
+    """Run the full analysis and return the API payload.
+
+    ``source_format`` names the container the text was extracted from ("pdf",
+    "docx", "text", ...). It changes no score - it only lets the result say when
+    the input format has already destroyed what the caller is asking about.
+    """
     settings = get_settings()
     if not isinstance(text, str):
         raise AnalysisError("text must be a string")
@@ -212,6 +238,9 @@ def analyse(
         warnings.append(
             "The document mixes more than two scripts, which can distort stylometric features."
         )
+    lossy = LOSSY_SOURCE_FORMATS.get((source_format or "").lower())
+    if lossy and watermark.label in ("clean", "weak_indicators"):
+        warnings.append(lossy)
 
     report = build_markdown_report(
         pre=pre,
@@ -244,6 +273,7 @@ def analyse(
             "language": features.language,
             "scripts": pre.scripts,
             "sha256": pre.sha256,
+            "source_format": source_format,
         },
         "scores": {
             "llm_likelihood": style.as_dict(),

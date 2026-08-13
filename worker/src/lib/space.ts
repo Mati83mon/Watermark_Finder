@@ -102,13 +102,19 @@ export class SpaceClient {
     mode: string,
     clientReference?: string,
     requestId?: string,
+    sourceFormat?: string,
   ): Promise<AnalysisResult> {
     const response = await this.request(
       '/analyze',
       {
         method: 'POST',
         headers: this.headers({ 'content-type': 'application/json' }),
-        body: JSON.stringify({ text, mode, client_reference: clientReference ?? null }),
+        body: JSON.stringify({
+          text,
+          mode,
+          client_reference: clientReference ?? null,
+          source_format: sourceFormat ?? null,
+        }),
       },
       requestId,
     );

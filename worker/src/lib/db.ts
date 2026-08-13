@@ -20,6 +20,7 @@ export interface AnalysisRow {
   status: AnalysisStatus;
   mode: AnalysisMode;
   source: 'text' | 'file';
+  source_format: string | null;
   filename: string | null;
   r2_text_key: string;
   r2_result_key: string | null;
@@ -55,7 +56,7 @@ export interface MetricsRow {
 export interface AnalysisJoinedRow extends AnalysisRow, Partial<Omit<MetricsRow, 'created_at'>> {}
 
 const SUMMARY_SELECT = `
-  SELECT a.id, a.workspace_id, a.status, a.mode, a.source, a.filename,
+  SELECT a.id, a.workspace_id, a.status, a.mode, a.source, a.source_format, a.filename,
          a.r2_text_key, a.r2_result_key, a.text_sha256, a.char_count, a.attempts,
          a.engine_version, a.error, a.created_at, a.started_at, a.completed_at,
          m.risk_score, m.risk_label, m.watermark_score, m.watermark_label,
@@ -107,6 +108,7 @@ export class Database {
     workspaceId: string;
     mode: AnalysisMode;
     source: 'text' | 'file';
+    sourceFormat: string | null;
     filename: string | null;
     r2TextKey: string;
     textSha256: string;
@@ -116,15 +118,16 @@ export class Database {
     await this.db
       .prepare(
         `INSERT INTO analyses
-           (id, workspace_id, status, mode, source, filename, r2_text_key,
-            text_sha256, char_count, attempts, created_at)
-         VALUES (?1, ?2, 'pending', ?3, ?4, ?5, ?6, ?7, ?8, 0, ?9)`,
+           (id, workspace_id, status, mode, source, source_format, filename,
+            r2_text_key, text_sha256, char_count, attempts, created_at)
+         VALUES (?1, ?2, 'pending', ?3, ?4, ?5, ?6, ?7, ?8, ?9, 0, ?10)`,
       )
       .bind(
         row.id,
         row.workspaceId,
         row.mode,
         row.source,
+        row.sourceFormat,
         row.filename,
         row.r2TextKey,
         row.textSha256,

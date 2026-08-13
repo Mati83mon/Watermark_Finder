@@ -44,6 +44,15 @@ class AnalyzeRequest(BaseModel):
         max_length=128,
         description="Opaque id echoed back in the response so the caller can correlate.",
     )
+    source_format: str | None = Field(
+        None,
+        max_length=32,
+        description=(
+            "Container the text was extracted from ('pdf', 'docx', 'text'). "
+            "Affects no score; lets the result warn when the format itself "
+            "destroys covert channels."
+        ),
+    )
 
 
 class AnalyzeResponse(BaseModel):
@@ -173,7 +182,7 @@ def create_app() -> FastAPI:
         dependencies=[Depends(require_api_key)],
     )
     async def analyze(request: Request, payload: AnalyzeRequest) -> AnalyzeResponse:
-        result = analyse(payload.text, payload.mode)
+        result = analyse(payload.text, payload.mode, source_format=payload.source_format)
         return AnalyzeResponse(
             request_id=getattr(request.state, "request_id", ""),
             client_reference=payload.client_reference,

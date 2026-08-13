@@ -201,13 +201,62 @@ def _printable_ratio(value: str) -> float:
     return printable / len(value)
 
 
+#: Minimum share of characters that must plausibly belong to a message.
+_MESSAGE_CHAR_RATIO = 0.8
+#: A payload dominated by one repeated character is noise, not a message.
+_MAX_SINGLE_CHAR_SHARE = 0.6
+#: Fewer distinct characters than this cannot carry meaning.
+_MIN_DISTINCT_CHARS = 3
+
+
+def _looks_like_a_message(value: str) -> bool:
+    """Reject decoder output that is structurally incapable of being a message.
+
+    Zero-width characters used as plain markers - a fixed symbol dropped every
+    N words - are not a binary payload, but read as bits they still produce
+    bytes. Those bytes decode to things like ``'\\xff\\xff\\xff'``, whose Latin-1
+    rendering (``ÿÿÿ``) is "printable" and used to sail through as a recovered
+    payload. Claiming a payload that is not there is worse than missing one, so
+    the output must also look like language: mostly word-ish characters, more
+    than a couple of distinct ones, and not one character repeated.
+    """
+    if len(set(value)) < _MIN_DISTINCT_CHARS:
+        return False
+
+    # A control character is decisive: no watermarking tool embeds C0/C1 bytes
+    # in a message, so even one means the bit stream was never a message.
+    if any(unicodedata.category(ch) == "Cc" and ch not in "\n\r\t" for ch in value):
+        return False
+
+    most_common = max(value.count(ch) for ch in set(value))
+    if most_common / len(value) > _MAX_SINGLE_CHAR_SHARE:
+        return False
+
+    messageish = sum(
+        1
+        for ch in value
+        if ch.isalnum() or ch.isspace() or ch in "-_.:;,/|@#()[]{}+=*?!'\"<>%$&~^`"
+    )
+    return messageish / len(value) >= _MESSAGE_CHAR_RATIO
+
+
 def _finalize(
     channel: str,
     data: bytes,
     offsets: Sequence[int],
     note: str = "",
     min_length: int = 2,
+    speculative: bool = False,
 ) -> DecodedPayload | None:
+    """Turn decoded bytes into a payload, or reject them.
+
+    ``speculative`` marks a channel whose bit assignment is guessed rather than
+    fixed. Tag characters and variation selectors map one codepoint to one byte
+    by definition: if they decode, someone encoded them. Zero-width binary does
+    not - the symbol-to-bit mapping differs per tool, so any run of zero-width
+    characters produces *some* bytes, and only that channel needs the output to
+    look like language before it may be called a payload.
+    """
     if len(data) < min_length:
         return None
     try:
@@ -217,6 +266,8 @@ def _finalize(
         note = (note + " (not valid UTF-8, shown as Latin-1)").strip()
     ratio = _printable_ratio(decoded)
     if ratio < 0.8:
+        return None
+    if speculative and not _looks_like_a_message(decoded):
         return None
     return DecodedPayload(
         channel=channel,
@@ -304,6 +355,7 @@ def decode_zero_width_binary(text: str) -> DecodedPayload | None:
             data,
             offsets[:usable],
             note=f"8-bit groups, 0=U+{ord(zero):04X} 1=U+{ord(one):04X}",
+            speculative=True,
         )
         if candidate is None:
             continue

@@ -36,6 +36,9 @@ analysesRoutes.post('/', async (c) => {
   let text: string;
   let source: 'text' | 'file' = 'text';
   let filename: string | null = null;
+  // Pasted text is exactly the bytes the user held; anything else has been
+  // through an extractor that may have dropped invisible characters.
+  let sourceFormat = 'text';
 
   if (input.text !== undefined) {
     text = input.text;
@@ -55,6 +58,7 @@ analysesRoutes.post('/', async (c) => {
     text = extracted.text;
     source = 'file';
     filename = stored.filename;
+    sourceFormat = extracted.format;
   }
 
   if (text.trim().length === 0) {
@@ -82,6 +86,7 @@ analysesRoutes.post('/', async (c) => {
     workspaceId: workspace.id,
     mode: input.mode,
     source,
+    sourceFormat,
     filename,
     r2TextKey: key,
     textSha256: sha256,
@@ -101,6 +106,7 @@ analysesRoutes.post('/', async (c) => {
         textKey: key,
         requestId,
         maxAttempts: config.maxAttempts,
+        sourceFormat,
       },
     ),
   );

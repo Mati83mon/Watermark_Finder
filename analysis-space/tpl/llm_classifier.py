@@ -121,12 +121,6 @@ PRIORS: dict[str, Prior] = {
         -0.30,
         "Generated paragraphs cluster around a similar length.",
     ),
-    "mattr": Prior(
-        0.72,
-        0.07,
-        -0.30,
-        "Lexical diversity over a fixed window is slightly lower in generated text.",
-    ),
     "bullet_line_ratio": Prior(
         0.12,
         0.22,
@@ -138,12 +132,6 @@ PRIORS: dict[str, Prior] = {
         6.0,
         0.30,
         "Generated sentences trend longer than conversational human writing.",
-    ),
-    "hapax_ratio": Prior(
-        0.62,
-        0.12,
-        -0.25,
-        "Once-only words indicate spontaneous vocabulary choice.",
     ),
     "long_word_ratio": Prior(
         0.22,
@@ -188,6 +176,31 @@ PRIORS: dict[str, Prior] = {
         "The single-character ellipsis is a generator artefact.",
     ),
 }
+
+#: Lexical-diversity features are computed and reported, but deliberately do
+#: not score. Both were measured against every sample available and neither
+#: behaves the way a scoring feature must.
+#:
+#: ``mattr``
+#:     The prior mean was taken from published type-token ratios for large
+#:     corpora, but the feature measures a moving average over a 50-word window,
+#:     which is a different quantity on a different scale. Every real sample -
+#:     human and generated, English and Polish - landed between +1.9 and +3.7
+#:     standard deviations above that mean, so the term was pinned at the
+#:     clipping ceiling and contributed a constant, not a signal.
+#:
+#: ``hapax_ratio``
+#:     Measured across document lengths it falls 0.85 -> 0.49 -> 0.07 -> 0.00
+#:     between 300 and 2400 words. That is the documented behaviour of hapax
+#:     measures, not a defect, but it means the feature tracks document length
+#:     as much as vocabulary, and a length-varying quantity cannot be compared
+#:     against a fixed mean.
+#:
+#: Together they added roughly -0.57 log-odds towards "human" to every score
+#: regardless of content, pulling a neutral document from 50% to 36%. Removing
+#: them removes a bias, not evidence. They belong back in the model only with a
+#: length-normalised estimator and means measured from a labelled corpus.
+UNSCORED_FEATURES: tuple[str, ...] = ("mattr", "hapax_ratio")
 
 #: Intercept: a neutral document leans slightly human.
 PRIOR_BIAS = -0.35

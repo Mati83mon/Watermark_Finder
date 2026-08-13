@@ -30,6 +30,7 @@ async function scenario(options: Parameters<typeof installEngineStub>[0] = {}) {
     workspaceId: WORKSPACE,
     mode: 'forensic',
     source: 'text',
+    sourceFormat: 'text',
     filename: null,
     r2TextKey: key,
     textSha256: 'b'.repeat(64),
@@ -148,6 +149,25 @@ describe('runAnalysis', () => {
       });
       expect(outcome.status).toBe('error');
       expect((await db.getAnalysis(analysisId))?.error).toContain('no longer in storage');
+    } finally {
+      engine.restore();
+    }
+  });
+
+  it('tells the engine which container the text came from', async () => {
+    const { engine, db, storage, space, analysisId } = await scenario();
+    try {
+      await runAnalysis({ db, storage, space }, {
+        analysisId,
+        workspaceId: WORKSPACE,
+        mode: 'forensic',
+        textKey: textKey(WORKSPACE, analysisId),
+        sourceFormat: 'pdf',
+      });
+      // A clean covert-channel verdict on a PDF is uninformative, so the engine
+      // has to be told the format in order to say so.
+      const call = engine.calls.find((c) => c.path === '/analyze');
+      expect((call?.body as { source_format: string }).source_format).toBe('pdf');
     } finally {
       engine.restore();
     }

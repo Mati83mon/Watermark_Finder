@@ -116,3 +116,46 @@ def test_preprocess_collects_multiple_payload_channels():
     channels = {payload.channel for payload in result.payloads}
     assert channels == {"tag_characters", "variation_selectors"}
     assert len(result.invisible_hits) > 0
+
+
+def test_plain_markers_do_not_become_a_fake_payload():
+    """Zero-width characters used as markers are not a binary message.
+
+    Found by a real test file: ZWSP dropped every ninth word and ZWJ every
+    fourteenth read as bits and decoded to ``ÿÿÿ``, which the printable check
+    happily accepted, so the app announced ``payload_recovered`` for a payload
+    that never existed. Claiming a message that is not there is worse than
+    reporting none.
+    """
+    marked, count = [], 0
+    for char in "Analiza systemow autonomicznych wskazuje na kluczowe znaczenie modeli. " * 12:
+        marked.append(char)
+        if char == " ":
+            count += 1
+            if count % 9 == 0:
+                marked.append("​")
+            elif count % 14 == 0:
+                marked.append("‍")
+    text = "".join(marked)
+
+    assert decode_zero_width_binary(text) is None
+    # The markers are still a watermark - they simply do not decode.
+    assert len(scan_characters(text)) >= 10
+
+
+def test_control_characters_disqualify_a_payload():
+    from tpl.preprocessing import _looks_like_a_message
+
+    assert _looks_like_a_message("wm:demo-1") is True
+    assert _looks_like_a_message("owner:Mateusz|id:001") is True
+    assert _looks_like_a_message("ÿÿÿ") is False  # one repeated character
+    assert _looks_like_a_message("JR\x91)JD") is False  # C1 control byte
+    assert _looks_like_a_message("ab") is False  # too few distinct
+
+
+def test_real_payloads_still_decode_after_the_stricter_check():
+    for payload in ("wm:demo-1", "owner:Mateusz|release:2026-08-13", "trace 42"):
+        text = "Ordinary looking prose." + encode_zero_width_binary(payload)
+        decoded = decode_zero_width_binary(text)
+        assert decoded is not None, payload
+        assert decoded.text == payload

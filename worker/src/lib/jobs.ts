@@ -37,6 +37,8 @@ export interface RunAnalysisJob {
   requestId?: string;
   /** Attempts allowed before the job is failed permanently. */
   maxAttempts?: number;
+  /** Container the text was extracted from, so the engine can caveat the result. */
+  sourceFormat?: string;
 }
 
 export interface RunOutcome {
@@ -61,7 +63,13 @@ export async function runAnalysis(
       throw new HttpError(500, 'missing_source', 'Source text is no longer in storage');
     }
 
-    const result = await space.analyze(text, job.mode, job.analysisId, job.requestId);
+    const result = await space.analyze(
+      text,
+      job.mode,
+      job.analysisId,
+      job.requestId,
+      job.sourceFormat,
+    );
     await persistResult(deps, job, result);
 
     await db.recordEvent(
@@ -181,6 +189,7 @@ export async function sweepStalledAnalyses(
       mode: row.mode,
       textKey: row.r2_text_key,
       maxAttempts: options.maxAttempts,
+      sourceFormat: row.source_format ?? undefined,
     });
     if (result.status === 'done') {
       outcome.retried.push(row.id);
