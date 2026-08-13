@@ -2,6 +2,9 @@
 
 **→ [watermark-finder.pages.dev](https://watermark-finder.pages.dev) — działa na żywo, bez rejestracji, bez instalacji**
 
+[![CI](https://github.com/Mati83mon/Watermark_Finder/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Mati83mon/Watermark_Finder/actions/workflows/ci.yml)
+[![Licencja: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 🇬🇧 [This document in English](README.md) · [Przykłady z prawdziwymi wynikami](examples/README.pl.md)
 
 Znajduje ukryte znaki w dokumentach — znaki zerowej szerokości, payloady w
@@ -201,7 +204,11 @@ cd analysis-space && TPL_API_TOKEN=e2e-secret uvicorn app:app --port 7860 &
 cd worker && npx tsx test/e2e.manual.ts   # 24 sprawdzenia
 ```
 
-CI uruchamia wszystkie cztery zestawy przy każdym pushu.
+CI uruchamia wszystkie cztery zestawy przy każdym pushu, na każdej gałęzi. Dwa
+workflowy wdrożeniowe są osobne i bramkowane: bez poświadczeń do Cloudflare albo
+Hugging Face pomijają się z wyjaśnieniem w podsumowaniu przebiegu, zamiast paść.
+Dzięki temu fork tego repozytorium pokazuje zieloną odznakę CI i żadnych
+widmowych błędów wdrożenia.
 
 ---
 

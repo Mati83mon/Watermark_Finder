@@ -225,6 +225,25 @@ pointing a production build at a local Worker.
 The workflow applies D1 migrations, deploys the Worker, smoke-tests
 `/api/health`, then builds and uploads the site.
 
+All four are set under **Settings → Secrets and variables → Actions**. If any of
+them is missing the workflow skips both deploy jobs and writes the reason into
+the run summary instead of failing:
+
+```
+### Deployment skipped
+
+This repository is not configured to deploy to Cloudflare. Missing:
+
+- `secret CLOUDFLARE_API_TOKEN`
+- `secret CLOUDFLARE_ACCOUNT_ID`
+```
+
+That is deliberate. A fork has no Cloudflare account to deploy into, and a red X
+on a fork whose code is fine is worse than no signal at all. `deploy-space.yml`
+behaves the same way when `HF_TOKEN` or `HF_SPACE_ID` is absent. The `CI`
+workflow is unconditional, so tests, typechecks and builds still run on every
+push regardless of credentials.
+
 ---
 
 ## Local development

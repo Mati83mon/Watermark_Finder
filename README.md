@@ -2,6 +2,9 @@
 
 **→ [watermark-finder.pages.dev](https://watermark-finder.pages.dev) — live, no signup, nothing to install**
 
+[![CI](https://github.com/Mati83mon/Watermark_Finder/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Mati83mon/Watermark_Finder/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 🇵🇱 [Ten dokument po polsku](README.pl.md) · [Examples with real results](examples/README.md)
 
 Finds hidden marks in documents — zero-width characters, Unicode tag payloads,
@@ -200,7 +203,10 @@ cd analysis-space && TPL_API_TOKEN=e2e-secret uvicorn app:app --port 7860 &
 cd worker && npx tsx test/e2e.manual.ts   # 24 checks
 ```
 
-CI runs all four suites on every push.
+CI runs all four suites on every push, on any branch. The two deploy workflows
+are separate and gated: without Cloudflare or Hugging Face credentials they skip
+with an explanation in the run summary rather than failing, so a fork of this
+repository shows a green CI badge and no phantom deployment errors.
 
 ---
 

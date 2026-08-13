@@ -37,9 +37,54 @@ env:
   CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
 jobs:
+  preflight:
+    name: Check deployment credentials
+    runs-on: ubuntu-latest
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    steps:
+      # A fork, or a clone of this repository, has no Cloudflare credentials and
+      # no Cloudflare account to deploy into. Without this gate every push to
+      # main would leave a red X on a repository whose code is fine, which is
+      # worse than no signal at all. Missing credentials mean "not my
+      # deployment", so the deploy jobs are skipped, not failed.
+      - name: Check
+        id: check
+        run: |
+          missing=()
+          [ -n "$CLOUDFLARE_API_TOKEN" ]  || missing+=("secret CLOUDFLARE_API_TOKEN")
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || missing+=("secret CLOUDFLARE_ACCOUNT_ID")
+          [ -n "$API_BASE_URL" ]          || missing+=("variable API_BASE_URL")
+          [ -n "$PAGES_PROJECT" ]         || missing+=("variable PAGES_PROJECT")
+
+          if [ ${#missing[@]} -eq 0 ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "All four values are set; deploying." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "configured=false" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Deployment skipped"
+            echo
+            echo "This repository is not configured to deploy to Cloudflare. Missing:"
+            echo
+            for item in "${missing[@]}"; do echo "- \`$item\`"; done
+            echo
+            echo "Set them under **Settings → Secrets and variables → Actions**."
+            echo "See [\`docs/deployment.md\`](../blob/main/docs/deployment.md)."
+            echo
+            echo "The code itself is tested by the CI workflow, which runs regardless."
+          } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+          PAGES_PROJECT: ${{ vars.PAGES_PROJECT }}
+
   worker:
     name: Worker
     runs-on: ubuntu-latest
+    needs: preflight
+    if: needs.preflight.outputs.configured == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -85,7 +130,8 @@ jobs:
   pages:
     name: Pages
     runs-on: ubuntu-latest
-    needs: worker
+    needs: [preflight, worker]
+    if: needs.preflight.outputs.configured == 'true'
     steps:
       - uses: actions/checkout@v4
 

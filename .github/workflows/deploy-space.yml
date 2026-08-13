@@ -35,18 +35,39 @@ jobs:
           ruff check tpl app.py train.py tests
           pytest
 
-      - name: Push the Space
+      - name: Check deployment credentials
+        id: check
         env:
           # Repository secret: a Hugging Face write token.
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           # Repository variable: e.g. "your-username/text-provenance-lab".
           HF_SPACE_ID: ${{ vars.HF_SPACE_ID }}
         run: |
-          if [ -z "$HF_TOKEN" ] || [ -z "$HF_SPACE_ID" ]; then
-            echo "HF_TOKEN secret and HF_SPACE_ID variable must be set" >&2
-            exit 1
+          # A fork, or a clone of this repository, owns no Space to push to.
+          # Missing credentials mean "not my deployment", so the remaining steps
+          # are skipped rather than failed - the tests above already ran, and a
+          # red X on working code is worse than no signal at all.
+          if [ -n "$HF_TOKEN" ] && [ -n "$HF_SPACE_ID" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          echo "configured=false" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Space deployment skipped"
+            echo
+            echo "This repository is not configured to push to a Hugging Face Space."
+            echo "Set the \`HF_TOKEN\` secret and the \`HF_SPACE_ID\` variable under"
+            echo "**Settings → Secrets and variables → Actions** to enable it."
+            echo
+            echo "The engine's tests ran in the steps above and are unaffected."
+          } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Push the Space
+        if: steps.check.outputs.configured == 'true'
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE_ID: ${{ vars.HF_SPACE_ID }}
+        run: |
           pip install "huggingface_hub[cli]==0.27.0"
 
           # Uploads the contents of analysis-space/ to the Space repo root.
@@ -59,6 +80,7 @@ jobs:
             --delete "*"
 
       - name: Wait for the Space to come back up
+        if: steps.check.outputs.configured == 'true'
         env:
           SPACE_URL: ${{ vars.SPACE_URL }}
         run: |
