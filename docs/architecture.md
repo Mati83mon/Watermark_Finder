@@ -127,10 +127,13 @@ budget.
 
 | Layer | Approach | Count |
 | --- | --- | --- |
-| Engine | pytest over pure functions and the FastAPI app via `TestClient` | 82 |
-| Worker | vitest driving the real Hono app; D1 is real SQLite (`node:sqlite`) running the production migration; KV/R2 are in-memory doubles; the engine is a stub | 63 |
-| Web | vitest + Testing Library over the API client, heatmap maths and components | 41 |
+| Engine | pytest over pure functions and the FastAPI app via `TestClient` | 85 |
+| Worker | vitest driving the real Hono app; D1 is real SQLite (`node:sqlite`) running the production migrations; KV/R2 are in-memory doubles; the engine is a stub | 64 |
+| Web | vitest + Testing Library over the API client, heatmap maths and components | 44 |
 | Integration | `worker/test/e2e.manual.ts` drives the real Worker against the real Python engine, asserting a planted payload is recovered end to end | 24 checks |
 
-The D1 harness runs `migrations/0001_init.sql` itself, so a schema change that
-breaks a query fails the test suite rather than production.
+The D1 harness applies every file in `migrations/` itself, so a schema change
+that breaks a query fails the test suite rather than production.
+
+[`examples/`](../examples/README.md) adds six end-to-end documents, one per
+detector, whose expected verdicts are checked with `generate.py --verify`.
