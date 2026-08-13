@@ -38,6 +38,9 @@ jobs:
       - name: Test
         run: pytest --cov=tpl --cov-report=term-missing
 
+      - name: Verify the documented example results
+        run: python ../examples/generate.py --verify
+
       - name: Verify the app imports and serves
         run: |
           python -c "
@@ -57,7 +60,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # 22, not 20: the Worker test harness backs D1 with a real in-memory
+          # SQLite database via `node:sqlite`, which landed in Node 22.5.
+          node-version: '22'
           cache: npm
 
       - name: Install dependencies
@@ -93,7 +98,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # 22, not 20: the Worker test harness backs D1 with a real in-memory
+          # SQLite database via `node:sqlite`, which landed in Node 22.5.
+          node-version: '22'
           cache: npm
 
       - name: Install dependencies

@@ -112,36 +112,53 @@ def zero_width_binary(text: str, message: str) -> str:
     return text + carrier
 
 
-EXAMPLES: dict[str, tuple[str, str]] = {
+#: name -> (content, description, expected watermark label, expected payload)
+#:
+#: The expected values are asserted by ``--verify``, which CI runs, so the
+#: results quoted in README.md cannot drift away from what the code does
+#: without the build going red.
+EXAMPLES: dict[str, tuple[str, str, str, str | None]] = {
     "01-clean.txt": (
         BASE,
         "No watermark at all. The control: proves the app does not cry wolf.",
+        "clean",
+        None,
     ),
     "02-marker-zero-width.txt": (
         marker_watermark(BASE),
         "Zero-width markers at regular intervals - a watermark with no message.",
+        "watermark_detected",
+        None,
     ),
     "03-payload-tag-characters.txt": (
         tag_payload(BASE, "owner:Mateusz|release:2026-08-13|id:WF-001"),
         "A readable message hidden in Unicode tag characters.",
+        "payload_recovered",
+        "owner:Mateusz|release:2026-08-13|id:WF-001",
     ),
     "04-payload-variation-selectors.txt": (
         variation_selector_payload(BASE, "leak-trace-42"),
         "A message hidden as bytes in variation selectors.",
+        "payload_recovered",
+        "leak-trace-42",
     ),
     "05-payload-zero-width-binary.txt": (
         zero_width_binary(BASE, "wm:demo-2026"),
         "A message encoded as binary in zero-width characters.",
+        "payload_recovered",
+        "wm:demo-2026",
     ),
     "06-homoglyphs.txt": (
         homoglyph_swap(BASE),
         "Cyrillic letters standing in for Latin ones inside Latin words.",
+        "watermark_suspected",
+        None,
     ),
 }
 
 
 def write_all() -> None:
-    for name, (content, description) in EXAMPLES.items():
+    for name, (content, description, _label, _payload) in EXAMPLES.items():
         (HERE / name).write_text(content, encoding="utf-8")
         hidden = sum(1 for c in content if not c.isprintable() or 0xE0000 <= ord(c) <= 0xE01EF)
         cyrillic = sum(1 for c in content if 0x0400 <= ord(c) <= 0x04FF)
@@ -166,16 +183,32 @@ def verify() -> int:
 
     print(f"{'file':38s} {'watermark':>10s}  {'verdict':22s} {'style':>6s}  payload")
     print("-" * 100)
-    for name in EXAMPLES:
+    failures = []
+    for name, (_content, _description, expected_label, expected_payload) in EXAMPLES.items():
         result = analyse((HERE / name).read_text(encoding="utf-8"), "forensic")
         scores = result["scores"]
         payloads = [p["text"] for p in result["payloads"]]
+        label = scores["watermark"]["label"]
         print(
             f"{name:38s} {scores['watermark']['value'] * 100:9.0f}%  "
-            f"{scores['watermark']['label']:22s} "
+            f"{label:22s} "
             f"{scores['llm_likelihood']['value'] * 100:5.0f}%  "
             f"{payloads or '-'}"
         )
+        if label != expected_label:
+            failures.append(f"{name}: expected verdict {expected_label!r}, got {label!r}")
+        recovered = payloads[0] if payloads else None
+        if recovered != expected_payload:
+            failures.append(
+                f"{name}: expected payload {expected_payload!r}, got {recovered!r}"
+            )
+
+    if failures:
+        print("\nMISMATCH - the documented results no longer match behaviour:", file=sys.stderr)
+        for failure in failures:
+            print(f"  {failure}", file=sys.stderr)
+        return 1
+    print("\nAll examples match their documented verdicts.")
     return 0
 
 

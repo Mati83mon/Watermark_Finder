@@ -45,7 +45,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # 22, not 20: the Worker test harness backs D1 with a real in-memory
+          # SQLite database via `node:sqlite`, which landed in Node 22.5.
+          node-version: '22'
           cache: npm
 
       - run: npm ci
@@ -89,7 +91,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # 22, not 20: the Worker test harness backs D1 with a real in-memory
+          # SQLite database via `node:sqlite`, which landed in Node 22.5.
+          node-version: '22'
           cache: npm
 
       - run: npm ci
