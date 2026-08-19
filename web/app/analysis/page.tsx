@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AnalysisMode, Capabilities } from '@wf/shared';
 import { api, ApiRequestError } from '@/lib/api';
+import { C2paChecker } from '@/components/C2paChecker';
 import { countWords, estimateTokens, formatBytes } from '@/lib/format';
 
 type Source = 'text' | 'file';
@@ -200,6 +201,8 @@ export default function NewAnalysisPage() {
           ) : null}
         </div>
       </form>
+
+      <C2paChecker />
     </div>
   );
 }

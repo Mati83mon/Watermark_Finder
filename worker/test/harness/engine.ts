@@ -238,6 +238,30 @@ export function installEngineStub(options: EngineStubOptions = {}): EngineStub {
       });
     }
 
+    if (url.pathname === '/c2pa') {
+      return Response.json({
+        request_id: 'stub',
+        filename: 'fixture.png',
+        mime_type: 'image/png',
+        bytes: 57370,
+        present: true,
+        integrity: 'intact',
+        trust: 'unrecognised',
+        raw_state: 'Valid',
+        generator: 'Watermark Finder test fixture',
+        signer_common_name: 'Watermark Finder Test Signer',
+        signer_issuer: 'Watermark Finder',
+        signature_alg: 'Es256',
+        title: 'ai.png',
+        embedded: true,
+        ai_declared: true,
+        actions: ['c2pa.created'],
+        failures: ['signingCredential.untrusted'],
+        notes: ['The signature checks out, but the signing certificate is not on a recognised trust list.'],
+        reason: null,
+      });
+    }
+
     if (url.pathname === '/analyze') {
       const body = init?.body ? JSON.parse(String(init.body)) : {};
       stub.calls[stub.calls.length - 1]!.body = body;

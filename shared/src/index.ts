@@ -347,6 +347,39 @@ export const MARK_CHANNEL_NOTE: Record<MarkChannel, string> = {
     'Eight codepoints per byte. Bulky, but built only from common zero-width characters that some pipelines pass through.',
 };
 
+/**
+ * A C2PA content credential read out of a file.
+ *
+ * `integrity` and `trust` are deliberately separate. A signature that verifies
+ * against a certificate nobody recognises is not verified provenance — anyone
+ * can mint a certificate whose common name reads "Adobe Inc." — and an intact
+ * file signed by an unknown party has still not been tampered with. Rendering
+ * one without the other misleads in one direction or the other.
+ */
+export interface C2paResult {
+  present: boolean;
+  filename?: string | null;
+  mime_type?: string;
+  bytes?: number;
+  /** intact | broken | unknown */
+  integrity: 'intact' | 'broken' | 'unknown';
+  /** recognised | unrecognised | unknown */
+  trust: 'recognised' | 'unrecognised' | 'unknown';
+  raw_state: string | null;
+  generator: string | null;
+  signer_common_name: string | null;
+  signer_issuer: string | null;
+  signature_alg: string | null;
+  title: string | null;
+  embedded: boolean | null;
+  /** True when the credential itself declares generative-AI authorship. */
+  ai_declared: boolean | null;
+  actions: string[];
+  failures: string[];
+  notes: string[];
+  reason: string | null;
+}
+
 export const WATERMARK_BASIS_NOTE: Record<WatermarkBasis, string> = {
   bytes: 'Deterministic: based on the actual bytes of the document.',
   stylistic:

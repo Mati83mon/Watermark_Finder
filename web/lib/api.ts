@@ -13,6 +13,7 @@ import type {
   AnalysisMode,
   AnalysisStatus,
   AnalysisSummary,
+  C2paResult,
   MarkChannel,
   MarkResult,
   SanitizeLevel,
@@ -224,6 +225,12 @@ export const api = {
         ? { upload_id: input.uploadId, mode: input.mode }
         : { text: input.text, mode: input.mode },
     }),
+
+  c2pa: (file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return request<C2paResult>('/api/c2pa', { method: 'POST', body: form });
+  },
 
   mark: (input: {
     text: string;

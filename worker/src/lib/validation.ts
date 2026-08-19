@@ -121,3 +121,23 @@ export function sanitizeFilename(name: string | undefined | null): string | null
     .slice(0, 200);
   return cleaned.length > 0 ? cleaned : null;
 }
+
+/**
+ * The shape a route needs from an uploaded file.
+ *
+ * Declared structurally rather than as `instanceof File`: the Workers runtime,
+ * Node and the test environment each expose their own File constructor, so an
+ * identity check on the class is unreliable across them.
+ */
+export interface UploadedFile {
+  name: string;
+  size: number;
+  type: string;
+  arrayBuffer(): Promise<ArrayBuffer>;
+}
+
+export function isUploadedFile(value: unknown): value is UploadedFile {
+  if (typeof value !== 'object' || value === null) return false;
+  const candidate = value as Partial<UploadedFile>;
+  return typeof candidate.arrayBuffer === 'function' && typeof candidate.name === 'string';
+}

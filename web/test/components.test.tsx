@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { Finding, SanitizeResult, Segment, Signal } from '@wf/shared';
+import type { C2paResult, Finding, SanitizeResult, Segment, Signal } from '@wf/shared';
 import { api } from '@/lib/api';
+import { C2paChecker } from '@/components/C2paChecker';
 import { SanitizePanel } from '@/components/SanitizePanel';
 import { ScoreCard } from '@/components/ScoreCard';
 import { FindingList, SignalList } from '@/components/SignalList';
@@ -228,5 +229,74 @@ describe('SanitizePanel', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /Download/ })).toBeInTheDocument(),
     );
+  });
+});
+
+describe('C2paChecker', () => {
+  const base: C2paResult = {
+    present: true,
+    integrity: 'intact',
+    trust: 'unrecognised',
+    raw_state: 'Valid',
+    generator: 'Some Tool',
+    signer_common_name: 'Adobe Inc.',
+    signer_issuer: 'Adobe',
+    signature_alg: 'Es256',
+    title: 'photo.png',
+    embedded: true,
+    ai_declared: true,
+    actions: ['c2pa.created'],
+    failures: ['signingCredential.untrusted'],
+    notes: ['The signature checks out, but the signing certificate is not on a recognised trust list.'],
+    reason: null,
+  };
+
+  function pick(file: File) {
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    Object.defineProperty(input, 'files', { value: [file], configurable: true });
+    fireEvent.change(input);
+  }
+
+  it('never shows a valid signature without saying whether the signer is trusted', async () => {
+    vi.spyOn(api, 'c2pa').mockResolvedValue(base);
+    render(<C2paChecker />);
+    pick(new File(['x'], 'photo.png', { type: 'image/png' }));
+
+    // A forger can put any name on a certificate, so "intact" alone must never
+    // read as verified provenance.
+    expect(await screen.findByText(/the file matches what was signed/)).toBeInTheDocument();
+    expect(screen.getByText(/Signer is not recognised/)).toBeInTheDocument();
+    expect(screen.getByText(/not on a recognised trust list/)).toBeInTheDocument();
+  });
+
+  it('surfaces a declared AI authorship', async () => {
+    vi.spyOn(api, 'c2pa').mockResolvedValue(base);
+    render(<C2paChecker />);
+    pick(new File(['x'], 'photo.png', { type: 'image/png' }));
+    expect(await screen.findByText('Declares AI authorship')).toBeInTheDocument();
+  });
+
+  it('says an absent credential proves nothing', async () => {
+    vi.spyOn(api, 'c2pa').mockResolvedValue({
+      ...base,
+      present: false,
+      integrity: 'unknown',
+      trust: 'unknown',
+      ai_declared: null,
+      notes: [],
+      reason: 'no content credential in this file',
+    });
+    render(<C2paChecker />);
+    pick(new File(['x'], 'plain.png', { type: 'image/png' }));
+
+    expect(await screen.findByText('No content credential')).toBeInTheDocument();
+    expect(screen.getByText(/says nothing about how the file was made/)).toBeInTheDocument();
+  });
+
+  it('reports tampering as broken integrity', async () => {
+    vi.spyOn(api, 'c2pa').mockResolvedValue({ ...base, integrity: 'broken' });
+    render(<C2paChecker />);
+    pick(new File(['x'], 'photo.png', { type: 'image/png' }));
+    expect(await screen.findByText(/changed after signing/)).toBeInTheDocument();
   });
 });

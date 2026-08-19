@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import pathlib
 
 import pytest
 from fastapi.testclient import TestClient
@@ -297,3 +298,41 @@ class TestMarkEndpoint:
     def test_requires_at_least_one_recipient(self, client):
         response = client.post("/mark", json={"text": self.DOC, "recipients": []})
         assert response.status_code == 422
+
+
+class TestC2paEndpoint:
+    FIXTURES = pathlib.Path(__file__).parent / "fixtures" / "c2pa"
+
+    def _post(self, client, name, mime="image/png"):
+        return client.post(
+            "/c2pa", files={"file": (name, (self.FIXTURES / name).read_bytes(), mime)}
+        )
+
+    def test_reads_a_signed_file(self, client):
+        response = self._post(client, "ai-generated.png")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["present"] is True
+        assert body["integrity"] == "intact"
+        assert body["ai_declared"] is True
+
+    def test_separates_integrity_from_trust(self, client):
+        body = self._post(client, "ai-generated.png").json()
+        assert body["integrity"] == "intact"
+        assert body["trust"] == "unrecognised"
+        assert any("recognised trust list" in note for note in body["notes"])
+
+    def test_tampering_is_not_reported_as_absence(self, client):
+        body = self._post(client, "tampered.png").json()
+        assert body["present"] is True
+        assert body["integrity"] == "broken"
+
+    def test_a_plain_file_claims_nothing(self, client):
+        body = self._post(client, "no-credential.png").json()
+        assert body["present"] is False
+        assert body["ai_declared"] is None
+
+    def test_capabilities_advertise_c2pa(self, client):
+        body = client.get("/capabilities").json()
+        assert body["c2pa_enabled"] is True
+        assert "application/pdf" in body["c2pa_mime_types"]

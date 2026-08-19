@@ -31,6 +31,14 @@ from .llm_classifier import load_model, model_metrics
 from .marking import CHANNELS, MarkingError, mark_for_recipients
 from .perplexity import is_enabled as perplexity_enabled
 from .pipeline import AnalysisError, analyse
+from .provenance import (
+    ProvenanceUnavailable,
+    inspect_bytes,
+    supported_mime_types,
+)
+from .provenance import (
+    is_available as provenance_available,
+)
 from .sanitize import sanitize
 
 logger = logging.getLogger("tpl.api")
@@ -220,6 +228,8 @@ def create_app() -> FastAPI:
             "max_chars": settings.max_chars,
             "max_upload_bytes": settings.max_upload_bytes,
             "perplexity_enabled": perplexity_enabled(),
+            "c2pa_enabled": provenance_available(),
+            "c2pa_mime_types": supported_mime_types(),
             "supported_uploads": sorted(SUPPORTED_EXTENSIONS),
             "auth_required": bool(settings.api_token),
         }
@@ -319,6 +329,39 @@ def create_app() -> FastAPI:
                 "copy reads the payload, and its sanitiser removes it entirely. "
                 "This traces honest recipients; it does not defeat an adversary.",
             ],
+        }
+
+    @app.post(
+        "/c2pa",
+        tags=["analysis"],
+        dependencies=[Depends(require_api_key)],
+        responses={401: {"model": ErrorResponse}, 413: {"model": ErrorResponse}},
+    )
+    async def c2pa_endpoint(request: Request, file: UploadFile = File(...)) -> dict[str, Any]:
+        """Read the C2PA content credential embedded in an uploaded file."""
+        settings = get_settings()
+        data = await file.read(settings.max_upload_bytes + 1)
+        if len(data) > settings.max_upload_bytes:
+            raise HTTPException(
+                status_code=413,
+                detail=f"File exceeds the {settings.max_upload_bytes} byte limit",
+            )
+
+        mime = file.content_type or "application/octet-stream"
+        try:
+            result = inspect_bytes(data, mime)
+        except ProvenanceUnavailable as exc:
+            raise HTTPException(
+                status_code=503,
+                detail=f"C2PA support is not installed in this deployment: {exc}",
+            ) from exc
+
+        return {
+            "request_id": getattr(request.state, "request_id", ""),
+            "filename": file.filename,
+            "mime_type": mime,
+            "bytes": len(data),
+            **result.as_dict(),
         }
 
     return app

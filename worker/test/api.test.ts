@@ -750,3 +750,60 @@ describe('POST /api/mark', () => {
     expect(((await list.json()) as { items: unknown[] }).items).toHaveLength(0);
   });
 });
+
+describe('POST /api/c2pa', () => {
+  function png(): File {
+    return new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], 'photo.png', {
+      type: 'image/png',
+    });
+  }
+
+  async function send(harness: Harness, file: File | null, auth = true) {
+    const form = new FormData();
+    if (file) form.append('file', file);
+    return harness.request('/api/c2pa', { method: 'POST', auth, body: form });
+  }
+
+  it('returns integrity and trust as separate fields', async () => {
+    const harness = await setup();
+    const response = await send(harness, png());
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      present: boolean;
+      integrity: string;
+      trust: string;
+      ai_declared: boolean;
+    };
+    expect(body.present).toBe(true);
+    expect(body.integrity).toBe('intact');
+    // Never collapsed into one "verified" flag.
+    expect(body.trust).toBe('unrecognised');
+    expect(body.ai_declared).toBe(true);
+  });
+
+  it('requires a file field', async () => {
+    const harness = await setup();
+    const response = await send(harness, null);
+    expect(response.status).toBe(400);
+  });
+
+  it('rejects an empty file', async () => {
+    const harness = await setup();
+    const response = await send(harness, new File([], 'empty.png', { type: 'image/png' }));
+    expect(response.status).toBe(400);
+  });
+
+  it('requires a workspace token', async () => {
+    const harness = await setup();
+    const response = await send(harness, png(), false);
+    expect(response.status).toBe(401);
+  });
+
+  it('stores nothing', async () => {
+    const harness = await setup();
+    await send(harness, png());
+    const list = await harness.request('/api/analyses');
+    expect(((await list.json()) as { items: unknown[] }).items).toHaveLength(0);
+  });
+});

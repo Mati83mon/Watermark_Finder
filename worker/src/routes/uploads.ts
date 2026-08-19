@@ -7,7 +7,7 @@ import { Database } from '../lib/db';
 import { badRequest, payloadTooLarge } from '../lib/errors';
 import { Storage, uploadKey } from '../lib/storage';
 import type { AppContext } from '../types';
-import { sanitizeFilename } from '../lib/validation';
+import { isUploadedFile, sanitizeFilename } from '../lib/validation';
 
 const ALLOWED_EXTENSIONS = new Set([
   '.txt',
@@ -23,26 +23,6 @@ const ALLOWED_EXTENSIONS = new Set([
   '.pdf',
   '.docx',
 ]);
-
-/**
- * The shape this route needs from an uploaded file.
- *
- * Declared structurally rather than as `instanceof File`: the Workers runtime,
- * Node and the test environment each expose their own File constructor, so an
- * identity check on the class is unreliable across them.
- */
-interface UploadedFile {
-  name: string;
-  size: number;
-  type: string;
-  arrayBuffer(): Promise<ArrayBuffer>;
-}
-
-function isUploadedFile(value: unknown): value is UploadedFile {
-  if (typeof value !== 'object' || value === null) return false;
-  const candidate = value as Partial<UploadedFile>;
-  return typeof candidate.arrayBuffer === 'function' && typeof candidate.name === 'string';
-}
 
 function extensionOf(filename: string): string {
   const dot = filename.lastIndexOf('.');

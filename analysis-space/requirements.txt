@@ -10,6 +10,11 @@ python-multipart==0.0.20
 pypdf==5.1.0
 python-docx==1.1.2
 
+# C2PA content credentials. ~15 MB manylinux wheel, no build step, no model
+# weights. This is the one provenance signal in the modern stack that a third
+# party can verify without a secret, so it earns its place.
+c2pa-python==0.37.7
+
 # Needed only to load a trained style model (models/style_clf.joblib).
 # The service falls back to the documented prior model when these are absent.
 scikit-learn==1.6.0

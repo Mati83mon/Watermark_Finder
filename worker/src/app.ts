@@ -2,6 +2,7 @@
 
 import { Hono } from 'hono';
 import { analysesRoutes } from './routes/analyses';
+import { c2paRoutes } from './routes/c2pa';
 import { markRoutes } from './routes/mark';
 import { metaRoutes } from './routes/meta';
 import { reportsRoutes } from './routes/reports';
@@ -30,12 +31,14 @@ export function createApp(): Hono<AppContext> {
   app.use('/api/sanitize/*', requireWorkspace);
   app.use('/api/sanitize', requireWorkspace);
   app.use('/api/mark', requireWorkspace);
+  app.use('/api/c2pa', requireWorkspace);
 
   app.route('/api/analyses', analysesRoutes);
   app.route('/api/uploads', uploadsRoutes);
   app.route('/api/reports', reportsRoutes);
   app.route('/api/sanitize', sanitizeRoutes);
   app.route('/api/mark', markRoutes);
+  app.route('/api/c2pa', c2paRoutes);
 
   app.get('/', (c) =>
     c.json({
@@ -60,6 +63,7 @@ export function createApp(): Hono<AppContext> {
         'DELETE /api/reports/:id',
         'POST   /api/sanitize',
         'POST   /api/mark',
+        'POST   /api/c2pa',
       ],
     }),
   );

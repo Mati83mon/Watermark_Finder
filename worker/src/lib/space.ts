@@ -6,7 +6,13 @@
  * jitter. Client errors (4xx) are never retried - they will fail identically.
  */
 
-import type { AnalysisResult, Capabilities, MarkResult, SanitizeResult } from '@wf/shared';
+import type {
+  AnalysisResult,
+  C2paResult,
+  Capabilities,
+  MarkResult,
+  SanitizeResult,
+} from '@wf/shared';
 import { badGateway } from './errors';
 
 export interface SpaceClientOptions {
@@ -178,6 +184,21 @@ export class SpaceClient {
       throw badGateway('Analysis engine returned a malformed response');
     }
     return payload as MarkResult;
+  }
+
+  async c2pa(file: Blob, filename: string, requestId?: string): Promise<C2paResult> {
+    const form = new FormData();
+    form.append('file', file, filename);
+    const response = await this.request(
+      '/c2pa',
+      { method: 'POST', headers: this.headers(), body: form },
+      requestId,
+    );
+    const payload = (await response.json()) as Partial<C2paResult>;
+    if (typeof payload?.present !== 'boolean') {
+      throw badGateway('Analysis engine returned a malformed response');
+    }
+    return payload as C2paResult;
   }
 
   async extract(
