@@ -15,8 +15,8 @@ część mierzy rejestr, nie autorstwo.
 
 ```
 ZNAKUJ  ────────────►  WYKRYJ  ────────────►  WYCZYŚĆ
-jedna kopia do         co jest ukryte w       usuń nośniki
-śledzenia na odbiorcę  dokumencie od kogoś    nie psując tekstu
+jedna kopia do         ukryte znaki,          usuń nośniki
+śledzenia na odbiorcę  poświadczenia C2PA     nie psując tekstu
 ```
 
 ```
@@ -115,6 +115,33 @@ indyjskie zapisują zwykłe wyrazy. Dlatego sanityzator decyduje per znak, w
 kontekście: poziom bezpieczny zachowuje to, czego pismo naprawdę potrzebuje, i
 mówi wprost, co zachował oraz że znak ukryty w tym miejscu przetrwa; poziom
 agresywny usuwa wszystko i mówi, co mógł zepsuć. Żaden nie milczy.
+
+### Weryfikuje poświadczenia C2PA
+
+Część narzędzi — Anthropic, Adobe, Leica, Google — dołącza do plików podpisany
+manifest pochodzenia. W przeciwieństwie do watermarku samplingowego nie wymaga
+to żadnego sekretu, więc da się to naprawdę sprawdzić. Obejmuje PDF, obrazy,
+audio i wideo.
+
+Raport nigdy nie sprowadza tego do jednej fajki:
+
+```
+Integralność   Nienaruszona — plik zgadza się z tym, co podpisano
+Zaufanie       Podpisujący nierozpoznany — deklarowane pochodzenie niezweryfikowane
+```
+
+To rozdzielenie jest sednem. Każdy może wystawić certyfikat, w którym nazwa
+brzmi „Adobe Inc."; podpis wtedy przechodzi bez zarzutu, a deklarowane
+pochodzenie jest fikcją. Jedna zielona fajka zamieniłaby to narzędzie w pralnię
+podrobionych poświadczeń.
+
+Manipulacja jest raportowana jako **naruszona integralność**, nigdy jako „brak
+poświadczenia" — plik, którego bajty zmieniono po podpisaniu, nie może wyglądać
+na czysty. A brak poświadczenia nie dowodzi niczego: większość plików go nie ma,
+a zapis albo konwersja zwykle je usuwa.
+
+C2PA niesie też pole IPTC, którym manifest deklaruje autorstwo generatywnej AI —
+pokazujemy je wprost.
 
 ### Pokazuje, skąd wziął wynik
 

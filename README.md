@@ -15,8 +15,8 @@ register, not authorship.
 
 ```
 MARK  ─────────────►  DETECT  ─────────────►  CLEAN
-one traceable copy    what is hidden in       remove the carriers
-per recipient         a document you got      without breaking the text
+one traceable copy    hidden characters,      remove the carriers
+per recipient         C2PA credentials        without breaking the text
 ```
 
 ```
@@ -116,6 +116,32 @@ words. So the cleaner decides per character, in context: the safe level keeps
 what a script genuinely needs and tells you exactly what it kept and that a
 mark hidden there survives; the aggressive level removes everything and tells
 you what it may have broken. Neither is silent.
+
+### Verifies C2PA content credentials
+
+Some tools — Anthropic, Adobe, Leica, Google — attach a signed provenance
+manifest to files they produce. Unlike the sampling watermark this needs no
+secret, so it can actually be checked here. Covers PDF, images, audio, video.
+
+The report never collapses into one tick:
+
+```
+Integrity   Intact — the file matches what was signed
+Trust       Signer is not recognised — the claimed origin is unverified
+```
+
+That separation is the whole point. Anyone can mint a certificate whose common
+name reads "Adobe Inc."; the signature then verifies perfectly while the claimed
+origin is fiction. A single green check would make this tool a laundering
+service for forged credentials.
+
+Tampering is reported as **broken integrity**, never as "no credential" — a file
+whose bytes changed after signing must not come back looking clean. And an
+absent credential claims nothing: most files carry none, and saving or
+converting usually strips it.
+
+C2PA also carries the IPTC field a manifest uses to declare generative-AI
+authorship, so that is surfaced directly.
 
 ### Shows its work
 

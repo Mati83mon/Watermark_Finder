@@ -231,6 +231,17 @@ failed round trip is an error, not a silently untraceable document. `warnings`
 always states that exporting to PDF destroys the mark, and that the mark is not
 secret — anyone with this tool reads it and `/api/sanitize` removes it.
 
+### `POST /api/c2pa`
+
+`multipart/form-data` with a `file` field. Reads the C2PA content credential
+embedded in the file. Stateless — nothing reaches D1 or R2.
+
+Accepts **any** file type, unlike `/api/uploads`: C2PA covers PDF, images, audio
+and video, and restricting it to the formats the analyser can read would discard
+most of the standard's value.
+
+→ `200` [`C2paResult`](#c2paresult)
+
 ### Reports
 
 | Method | Path | Body / result |
@@ -287,6 +298,12 @@ validating passthrough.
 Same contract as `POST /api/mark` above. `422` when the payload cannot use the
 requested channel — `tag_characters` carries printable ASCII only — or when the
 mark fails to decode back out.
+
+### `POST /c2pa`
+
+Same contract as `POST /api/c2pa` above. `503` when the deployment was built
+without the C2PA library; `/capabilities` reports `c2pa_enabled` and the list of
+covered MIME types.
 
 ### `GET /health`, `GET /version`, `GET /capabilities`, `GET /docs`
 
@@ -406,6 +423,46 @@ The engine's full response. TypeScript definitions live in
 `verified` is always `true` in a successful response: the engine decodes the
 mark back out of the produced document before returning it, and raises rather
 than handing back a copy that cannot be traced.
+
+## `C2paResult`
+
+```json
+{
+  "present": true,
+  "integrity": "intact",
+  "trust": "unrecognised",
+  "raw_state": "Valid",
+  "generator": "Some Tool 1.0",
+  "signer_common_name": "Example Signer",
+  "signature_alg": "Es256",
+  "ai_declared": true,
+  "actions": ["c2pa.created"],
+  "failures": ["signingCredential.untrusted"],
+  "notes": ["The signature checks out, but the signing certificate is not on a recognised trust list…"],
+  "reason": null
+}
+```
+
+`integrity` and `trust` are separate and both must be shown. The underlying
+library reports three states:
+
+| State | `integrity` | `trust` | Means |
+| --- | --- | --- | --- |
+| `Trusted` | `intact` | `recognised` | Hashes match and the signer chains to a known anchor |
+| `Valid` | `intact` | `unrecognised` | Hashes match; the signer is **not** recognised |
+| `Invalid` | `broken` | `unknown` | A hash or signature did not check out |
+
+`Valid` is the trap. Anyone can issue a certificate whose common name reads
+"Adobe Inc." and sign a file with it; the manifest then validates perfectly
+while claiming whatever its author wanted. A client that renders `Valid` as
+"verified" is laundering forged credentials.
+
+`present: false` with a `reason` means no credential was found, the format is not
+covered, or the file could not be parsed. It is never a claim about how the file
+was made — most files carry no credential, and saving or converting strips it.
+
+`ai_declared` reflects the IPTC `digitalSourceType` field: `true` for generative
+media, `false` when another source is declared, `null` when nothing is said.
 
 ### Segment offsets
 
