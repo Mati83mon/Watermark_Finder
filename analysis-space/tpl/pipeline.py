@@ -281,6 +281,7 @@ def analyse(
                 "value": watermark.score,
                 "label": watermark.label,
                 "confidence": watermark.confidence,
+                "basis": watermark.basis,
             },
             "risk": {"value": risk, "label": risk_label(risk)},
         },

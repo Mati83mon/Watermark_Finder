@@ -8,7 +8,7 @@ from tpl.llm_classifier import (
     load_model,
 )
 from tpl.preprocessing import encode_tag_characters, encode_zero_width_binary, preprocess
-from tpl.watermark_heuristics import analyse_watermarks
+from tpl.watermark_heuristics import CATEGORY_STYLISTIC, analyse_watermarks
 
 
 def _score(text: str) -> float:
@@ -129,3 +129,34 @@ def test_min_words_threshold_is_respected():
     model = PriorStyleModel()
     text = " ".join(["word"] * (MIN_WORDS_FOR_VERDICT - 1))
     assert model.predict(extract_features(text)).label == LABEL_INSUFFICIENT
+
+
+class TestScoreBasis:
+    """A stylistic hint must never be presented as byte-level evidence.
+
+    The result page prints "Deterministic: based on the actual bytes of the
+    document" under the watermark score. That sentence holds only when a
+    covert-channel or obfuscation signal actually fired. A document scoring 21%
+    purely on em dash frequency has nothing in its bytes, and captioning that
+    number "deterministic" invites the reader to treat a guess as proof.
+    """
+
+    def test_clean_text_reports_no_basis(self):
+        result = analyse_watermarks(preprocess("Zwykle zdanie bez zadnych sztuczek."))
+        assert result.basis == "none"
+
+    def test_hidden_characters_report_byte_basis(self):
+        marked = "Zwykle zdanie." + encode_tag_characters("owner:test|id:42")
+        result = analyse_watermarks(preprocess(marked))
+        assert result.basis == "bytes"
+
+    def test_style_only_score_is_not_called_deterministic(self):
+        # Em dashes and nothing else: the typography signal fires, no covert
+        # channel does. This is the shape that produced 21% on a document
+        # containing zero hidden characters.
+        text = " ".join(["Zdanie - z myslnikiem \u2014 i kolejnym \u2014 tutaj."] * 40)
+        result = analyse_watermarks(preprocess(text))
+        assert result.basis == "stylistic"
+        assert all(s.category == CATEGORY_STYLISTIC for s in result.signals)
+        # The 0.45 cap keeps a style-only score below the "suspected" band.
+        assert result.score < 0.5

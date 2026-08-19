@@ -395,6 +395,16 @@ class WatermarkResult:
     label: str
     confidence: str
     signals: list[Signal]
+    #: Where the score came from, so a caller never presents a stylistic guess
+    #: as byte-level proof:
+    #:
+    #: ``bytes``      at least one covert-channel or obfuscation signal fired,
+    #:                so the number rests on characters actually present.
+    #: ``stylistic``  only soft signals fired. Nothing was found in the bytes;
+    #:                the score is a weak stylistic hint and cannot exceed the
+    #:                0.45 cap applied below.
+    #: ``none``       no signal fired at all.
+    basis: str = "none"
 
     @property
     def covert_signals(self) -> list[Signal]:
@@ -448,6 +458,13 @@ def analyse_watermarks(pre: PreprocessResult) -> WatermarkResult:
     score = max(hard_score, soft_score * 0.45)
     score = max(0.0, min(0.99, score))
 
+    if hard:
+        basis = "bytes"
+    elif soft:
+        basis = "stylistic"
+    else:
+        basis = "none"
+
     has_payload = any(s.id.startswith("payload_") for s in signals)
     if has_payload:
         score = max(score, 0.95)
@@ -465,6 +482,7 @@ def analyse_watermarks(pre: PreprocessResult) -> WatermarkResult:
         label=_label_for(score, has_payload),
         confidence=confidence,
         signals=signals,
+        basis=basis,
     )
 
 

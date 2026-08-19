@@ -16,6 +16,8 @@ export type Severity = 'info' | 'low' | 'medium' | 'high' | 'critical';
 
 export type SignalCategory = 'covert_channel' | 'obfuscation' | 'stylistic';
 
+export type WatermarkBasis = 'bytes' | 'stylistic' | 'none';
+
 export type WatermarkLabel =
   | 'payload_recovered'
   | 'watermark_detected'
@@ -151,7 +153,19 @@ export interface AnalysisResult {
   };
   scores: {
     llm_likelihood: StyleScore;
-    watermark: { value: number; label: WatermarkLabel; confidence: Confidence };
+    watermark: {
+      value: number;
+      label: WatermarkLabel;
+      confidence: Confidence;
+      /**
+       * Where the number came from. `bytes` means a covert-channel or
+       * obfuscation signal fired and the score rests on characters actually
+       * present in the document. `stylistic` means nothing was found in the
+       * bytes and the score is a capped stylistic hint. `none` means no signal
+       * fired. Callers must not describe a `stylistic` score as deterministic.
+       */
+      basis: WatermarkBasis;
+    };
     risk: { value: number; label: RiskLabel };
   };
   signals: Signal[];
@@ -261,6 +275,19 @@ export const STYLE_LABEL_TEXT: Record<StyleLabel, string> = {
   inconclusive: 'Inconclusive',
   likely_ai: 'Reads as assistant output',
   very_likely_ai: 'Strongly assistant-like',
+};
+
+/**
+ * Caption printed under the watermark score. It must track where the number
+ * came from: describing a score as "deterministic" when it rests only on em
+ * dash frequency tells the reader something was found in the bytes when
+ * nothing was.
+ */
+export const WATERMARK_BASIS_NOTE: Record<WatermarkBasis, string> = {
+  bytes: 'Deterministic: based on the actual bytes of the document.',
+  stylistic:
+    'No hidden characters found. This is a capped stylistic hint, not byte evidence.',
+  none: 'Deterministic: no covert channel found in the bytes of the document.',
 };
 
 export const WATERMARK_LABEL_TEXT: Record<WatermarkLabel, string> = {

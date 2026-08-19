@@ -68,7 +68,7 @@ export function makeResult(overrides: Partial<AnalysisResult> = {}): AnalysisRes
         ],
         notes: ['Coefficients are a documented prior.'],
       },
-      watermark: { value: 0.97, label: 'payload_recovered', confidence: 'high' },
+      watermark: { value: 0.97, label: 'payload_recovered', confidence: 'high', basis: 'bytes' },
       risk: { value: 0.93, label: 'critical' },
     },
     signals: [

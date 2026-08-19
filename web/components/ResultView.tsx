@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { AnalysisDetail, Segment } from '@wf/shared';
-import { STYLE_LABEL_TEXT, WATERMARK_LABEL_TEXT } from '@wf/shared';
+import { STYLE_LABEL_TEXT, WATERMARK_BASIS_NOTE, WATERMARK_LABEL_TEXT } from '@wf/shared';
 import { api } from '@/lib/api';
 import { formatDate, percent, RISK_CLASSES } from '@/lib/format';
 import { FindingList, SignalList } from '@/components/SignalList';
@@ -73,7 +73,7 @@ export function ResultView({ analysis, text, segments }: ResultViewProps) {
           label={WATERMARK_LABEL_TEXT[scores.watermark.label]}
           confidence={scores.watermark.confidence}
           tone={watermarkTone}
-          footnote="Deterministic: based on the actual bytes of the document."
+          footnote={WATERMARK_BASIS_NOTE[scores.watermark.basis ?? 'none']}
         />
         <ScoreCard
           title="Assistant-register style"
