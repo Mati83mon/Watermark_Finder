@@ -175,6 +175,62 @@ and its cache entry. → `{ "deleted": true, "id": "…" }`
 
 Pass `upload_id` to `POST /api/analyses`. Text extraction happens in the engine.
 
+### `POST /api/sanitize`
+
+Removes covert-channel characters and returns the cleaned text. Synchronous and
+**stateless**: nothing is written to D1 or R2. Sanitising is a pure function of
+the input, and keeping a copy of a document somebody is cleaning in order to
+pass it on would defeat the purpose.
+
+```json
+{ "text": "…", "level": "safe", "normalize_homoglyphs": false }
+```
+
+`level` is `safe` or `aggressive`. `safe` keeps invisible characters the
+document's scripts genuinely need — emoji joiners, the ZWJ/ZWNJ that Arabic,
+Persian and the Indic scripts spell words with, CJK variation selectors, bidi
+controls in RTL documents — and reports each one. `aggressive` removes every
+invisible character and reports what that may have broken.
+
+`normalize_homoglyphs` rewrites non-Latin look-alikes to Latin, but only where
+they sit inside an otherwise-Latin word, so genuinely Cyrillic prose is left
+alone. Off by default.
+
+→ `200` [`SanitizeResult`](#sanitizeresult)
+
+`preserved` is not filler. A joiner a script needs is also somewhere a mark can
+hide, so `safe` keeps it, lists it, and warns that a mark there survives.
+
+### `POST /api/mark`
+
+Produces one invisibly marked copy of a document per recipient. Also
+synchronous and stateless: the documents people mark are contracts and
+unreleased drafts.
+
+```json
+{
+  "text": "…",
+  "recipients": ["Jan", "Anna", "Piotr"],
+  "template": "WF-{index:03d}",
+  "channel": "tag_characters",
+  "repeat": 2
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `recipients` | 1–100 distinct strings. Duplicates are rejected: identical copies cannot be told apart. |
+| `template` | Payload written into each copy. `{recipient}` and `{index}` are substituted. |
+| `channel` | `tag_characters` (printable ASCII, 1 codepoint per character), `variation_selectors` (1 per byte, any UTF-8), `zero_width_binary` (8 per byte). |
+| `repeat` | 1–20. How many times the payload is embedded, spread across sentence boundaries. |
+
+→ `200 { "channel": "…", "copies": [MarkedCopy], "warnings": [...] }`
+
+Every copy is verified by decoding the mark back out before it is returned; a
+failed round trip is an error, not a silently untraceable document. `warnings`
+always states that exporting to PDF destroys the mark, and that the mark is not
+secret — anyone with this tool reads it and `/api/sanitize` removes it.
+
 ### Reports
 
 | Method | Path | Body / result |
@@ -220,6 +276,17 @@ Authenticated with `X-API-Key: <TPL_API_TOKEN>` when the token is configured.
 → `200 { "text": "…", "format": "pdf", "pages": 12, "truncated": false, "notes": [], "chars": 40213 }`
 
 → `413` over `TPL_MAX_UPLOAD_BYTES`, `422` when no text can be extracted.
+
+### `POST /sanitize`
+
+Same contract as `POST /api/sanitize` above; the Worker route is a thin
+validating passthrough.
+
+### `POST /mark`
+
+Same contract as `POST /api/mark` above. `422` when the payload cannot use the
+requested channel — `tag_characters` carries printable ASCII only — or when the
+mark fails to decode back out.
 
 ### `GET /health`, `GET /version`, `GET /capabilities`, `GET /docs`
 
@@ -296,6 +363,49 @@ The engine's full response. TypeScript definitions live in
   "model_metrics": {}
 }
 ```
+
+## `SanitizeResult`
+
+```json
+{
+  "text": "Confidential draft.",
+  "level": "safe",
+  "changed": true,
+  "removed": [
+    { "offset": 19, "codepoint": "U+E006F", "name": "TAG LATIN SMALL LETTER O",
+      "reason": "tag characters have no use in plain text and are a standard carrier" }
+  ],
+  "removed_total": 19,
+  "replaced": [
+    { "offset": 4, "before": "U+2003", "after": "U+0020", "reason": "normalised to a plain space" }
+  ],
+  "replaced_total": 1,
+  "preserved": [
+    { "offset": 2, "codepoint": "U+200C", "name": "ZERO WIDTH NON-JOINER",
+      "reason": "joins an emoji sequence or a script that spells words with it" }
+  ],
+  "preserved_total": 1,
+  "warnings": ["1 invisible character(s) were kept because this document needs them…"]
+}
+```
+
+## `MarkedCopy`
+
+```json
+{
+  "recipient": "Jan Kowalski",
+  "payload": "WF-001",
+  "text": "…the document, carrying the mark…",
+  "channel": "tag_characters",
+  "carrier_chars": 14,
+  "copies_embedded": 2,
+  "verified": true
+}
+```
+
+`verified` is always `true` in a successful response: the engine decodes the
+mark back out of the produced document before returning it, and raises rather
+than handing back a copy that cannot be traced.
 
 ### Segment offsets
 

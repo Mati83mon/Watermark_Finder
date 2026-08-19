@@ -7,9 +7,17 @@
 
 🇬🇧 [This document in English](README.md) · [Przykłady z prawdziwymi wynikami](examples/README.pl.md)
 
-Znajduje ukryte znaki w dokumentach — znaki zerowej szerokości, payloady w
-znakach tagowych Unicode, podmiany na homoglify — i ocenia, na ile tekst czyta
-się jak niezredagowane wyjście asystenta AI.
+Oznacz dokument niewidocznie, znajdź znak w dokumencie, który dostałeś, albo
+usuń go, zanim przekażesz dokument dalej. Znaki zerowej szerokości, payloady w
+znakach tagowych Unicode, podmiany na homoglify. Ocenia też, na ile tekst czyta
+się jak niezredagowane wyjście asystenta — z głośnymi zastrzeżeniami, bo ta
+część mierzy rejestr, nie autorstwo.
+
+```
+ZNAKUJ  ────────────►  WYKRYJ  ────────────►  WYCZYŚĆ
+jedna kopia do         co jest ukryte w       usuń nośniki
+śledzenia na odbiorcę  dokumencie od kogoś    nie psując tekstu
+```
 
 ```
 Pages (Next.js)  →  Worker (Hono + D1/KV/R2)  →  Space (FastAPI + Python)
@@ -71,6 +79,42 @@ STYL   0.86  [0.51–1.00]  very_likely_ai  pewność: low
 
 Poniżej 150 słów wynik jest ściągany w stronę 50%; poniżej 15 słów aplikacja
 w ogóle odmawia werdyktu i zwraca `insufficient_evidence`.
+
+### Znakuje dokumenty, żeby dało się namierzyć wyciek
+
+Wklejasz poufny draft, wpisujesz listę odbiorców i dostajesz po jednej kopii na
+osobę. Kopie czytają się identycznie, każda niesie inny niewidoczny numer.
+
+```
+Jan Kowalski     WF-001    +14 znaków   odczyt zwrotny ✓
+Anna Nowak       WF-002    +14 znaków   odczyt zwrotny ✓
+Piotr Wiśniewski WF-003    +14 znaków   odczyt zwrotny ✓
+```
+
+Każda kopia jest sprawdzana przez odkodowanie znaku z powrotem, zanim trafi do
+Ciebie. Znaki są rozproszone po granicach zdań, więc zacytowany fragment nadal
+je niesie — w testach fragment 50% dokumentu odtwarza cały payload.
+
+Znak nie jest tajny: każdy z tym narzędziem go odczyta, a jego własny
+sanityzator go usuwa. Śledzi uczciwych odbiorców, nie pokonuje przeciwnika,
+który zna technikę.
+
+### Czyści dokumenty, nie psując ich
+
+Usuwanie niewidocznych znaków brzmi trywialnie i takie nie jest. Zmierzone na
+naiwnym podejściu:
+
+```
+rodzina emoji  👨‍👩‍👧  ->  trzy osobne osoby
+serce  ❤️ (U+FE0F)  ->  zwykły glif
+perskie  می‌خواهم   ->  inne słowo
+```
+
+Złączenia zerowej szerokości to sposób, w jaki arabski, perski i pisma
+indyjskie zapisują zwykłe wyrazy. Dlatego sanityzator decyduje per znak, w
+kontekście: poziom bezpieczny zachowuje to, czego pismo naprawdę potrzebuje, i
+mówi wprost, co zachował oraz że znak ukryty w tym miejscu przetrwa; poziom
+agresywny usuwa wszystko i mówi, co mógł zepsuć. Żaden nie milczy.
 
 ### Pokazuje, skąd wziął wynik
 

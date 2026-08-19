@@ -7,9 +7,17 @@
 
 🇵🇱 [Ten dokument po polsku](README.pl.md) · [Examples with real results](examples/README.md)
 
-Finds hidden marks in documents — zero-width characters, Unicode tag payloads,
-homoglyph substitution — and scores how much the writing reads like unedited
-assistant output.
+Mark a document invisibly, find the mark in a document you received, or strip
+it out before passing the document on. Zero-width characters, Unicode tag
+payloads, homoglyph substitution. It also scores how much the writing reads
+like unedited assistant output — with loud caveats, because that part measures
+register, not authorship.
+
+```
+MARK  ─────────────►  DETECT  ─────────────►  CLEAN
+one traceable copy    what is hidden in       remove the carriers
+per recipient         a document you got      without breaking the text
+```
 
 ```
 Pages (Next.js)  →  Worker (Hono + D1/KV/R2)  →  Space (FastAPI + Python)
@@ -72,6 +80,42 @@ STYLE  0.86  [0.51–1.00]  very_likely_ai  confidence: low
 
 Below 150 words the score is pulled toward 50%; below 15 words it refuses a
 verdict entirely and returns `insufficient_evidence`.
+
+### Marks documents so a leak can be traced
+
+Paste a confidential draft, list who receives it, and get one copy per person.
+The copies read identically; each carries a different invisible id.
+
+```
+Jan Kowalski     WF-001    +14 chars   read back ✓
+Anna Nowak       WF-002    +14 chars   read back ✓
+Piotr Wisniewski WF-003    +14 chars   read back ✓
+```
+
+Every copy is verified by decoding the mark back out before it is handed to
+you. Marks are spread across sentence boundaries, so a quoted excerpt still
+carries one — a 50% excerpt recovers the whole payload in the test suite.
+
+The mark is not secret: anyone with this tool reads it, and this tool's own
+cleaner removes it. It traces honest recipients; it does not defeat an
+adversary who knows the technique.
+
+### Cleans documents without breaking them
+
+Removing invisible characters sounds trivial and is not. Measured on the naive
+approach:
+
+```
+family emoji  👨‍👩‍👧  ->  three separate people
+heart  ❤️ (U+FE0F)  ->  a plain dingbat
+Persian  می‌خواهم    ->  a different word
+```
+
+Zero-width joiners are how Arabic, Persian and the Indic scripts spell ordinary
+words. So the cleaner decides per character, in context: the safe level keeps
+what a script genuinely needs and tells you exactly what it kept and that a
+mark hidden there survives; the aggressive level removes everything and tells
+you what it may have broken. Neither is silent.
 
 ### Shows its work
 
