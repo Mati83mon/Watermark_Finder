@@ -35,6 +35,7 @@ from .provenance import (
     ProvenanceUnavailable,
     inspect_bytes,
     supported_mime_types,
+    trust_list_size,
 )
 from .provenance import (
     is_available as provenance_available,
@@ -230,6 +231,7 @@ def create_app() -> FastAPI:
             "perplexity_enabled": perplexity_enabled(),
             "c2pa_enabled": provenance_available(),
             "c2pa_mime_types": supported_mime_types(),
+            "c2pa_trust_anchors": trust_list_size(),
             "supported_uploads": sorted(SUPPORTED_EXTENSIONS),
             "auth_required": bool(settings.api_token),
         }

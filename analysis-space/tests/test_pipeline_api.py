@@ -336,3 +336,5 @@ class TestC2paEndpoint:
         body = client.get("/capabilities").json()
         assert body["c2pa_enabled"] is True
         assert "application/pdf" in body["c2pa_mime_types"]
+        # Without anchors the trust dimension would be a constant.
+        assert body["c2pa_trust_anchors"] >= 25

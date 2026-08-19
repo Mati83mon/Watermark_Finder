@@ -84,3 +84,57 @@ class TestCoverage:
         types = supported_mime_types()
         for expected in ("application/pdf", "image/jpeg", "image/png", "video/mp4"):
             assert expected in types
+
+
+class TestTrustAnchors:
+    """Without anchors the trust dimension is a constant, not a signal.
+
+    The library ships no trust list of its own, so before the official C2PA
+    list was vendored every file on earth - including genuinely Google- and
+    Adobe-signed ones - reported `unrecognised`. These tests pin both
+    directions: the wiring actually promotes a listed CA, and an unlisted one
+    is still refused.
+    """
+
+    def test_the_official_list_is_bundled_and_loads(self):
+        from tpl.provenance import TRUST_LIST, trust_list_size
+
+        assert TRUST_LIST.is_file()
+        assert trust_list_size() >= 25
+
+    def test_google_is_on_the_bundled_list(self):
+        # The point of the exercise: Gemini images are signed under this root.
+        from tpl.provenance import TRUST_LIST
+
+        assert "Google" in _subjects(TRUST_LIST.read_text(encoding="utf-8"))
+
+    def test_a_listed_authority_is_recognised(self, monkeypatch):
+        # Point the loader at the fixture root, which did sign these files.
+        import tpl.provenance as provenance
+
+        provenance._context.cache_clear()
+        monkeypatch.setattr(provenance, "TRUST_LIST", FIXTURES / "test-root-ca.pem")
+        try:
+            result = provenance.inspect_bytes(_read("ai-generated.png"), "image/png")
+            assert result.trust == "recognised"
+            assert result.raw_state == "Trusted"
+            assert result.integrity == "intact"
+        finally:
+            provenance._context.cache_clear()
+
+    def test_an_unlisted_authority_stays_unrecognised(self):
+        # Same file, real list: the fixture CA is not a C2PA authority.
+        result = inspect_bytes(_read("ai-generated.png"), "image/png")
+        assert result.trust == "unrecognised"
+
+
+def _subjects(pem: str) -> str:
+    """Certificate subjects as one blob, without shelling out to openssl."""
+    import base64
+    import re
+
+    out = []
+    for block in re.findall(r"-----BEGIN CERTIFICATE-----(.*?)-----END CERTIFICATE-----", pem, re.S):
+        der = base64.b64decode("".join(block.split()))
+        out.append(der.decode("latin-1"))
+    return "".join(out)

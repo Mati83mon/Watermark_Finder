@@ -31,12 +31,56 @@ render one without the other.
 
 from __future__ import annotations
 
+import functools
 import json
 import logging
+import pathlib
 from dataclasses import dataclass, field
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+#: The official C2PA trust list, vendored in tpl/data. Without it nothing can
+#: ever be "trusted": the library ships no anchors of its own, so every file -
+#: including a genuine Google- or Adobe-signed one - would report an
+#: unrecognised signer and the trust dimension would be a constant.
+TRUST_LIST = pathlib.Path(__file__).parent / "data" / "c2pa-trust-list.pem"
+
+
+@functools.lru_cache(maxsize=1)
+def _context():
+    """A reader context carrying the trust anchors, built once.
+
+    Returns ``None`` when the list is missing or the library rejects it, in
+    which case reads fall back to the default behaviour: signatures are still
+    checked, but no signer can be recognised.
+    """
+    try:
+        import c2pa
+    except Exception:  # pragma: no cover - deployment detail
+        return None
+    if not TRUST_LIST.is_file():
+        logger.warning("C2PA trust list missing at %s; no signer can be trusted", TRUST_LIST)
+        return None
+    try:
+        settings = c2pa.Settings.from_dict(
+            {
+                "trust": {"trust_anchors": TRUST_LIST.read_text(encoding="utf-8")},
+                "verify": {"verify_trust": True},
+            }
+        )
+        return c2pa.ContextBuilder().with_settings(settings).build()
+    except Exception as exc:  # pragma: no cover - library detail
+        logger.warning("could not load the C2PA trust list: %s", exc)
+        return None
+
+
+def trust_list_size() -> int:
+    """How many anchors are loaded, for /capabilities and for tests."""
+    if not TRUST_LIST.is_file():
+        return 0
+    return TRUST_LIST.read_text(encoding="utf-8").count("BEGIN CERTIFICATE")
+
 
 #: IPTC digital source type meaning "made by a generative model". This is the
 #: standard way a C2PA manifest declares AI authorship.
@@ -158,7 +202,7 @@ def inspect_bytes(data: bytes, mime_type: str) -> C2paResult:
     import io
 
     try:
-        with c2pa.Reader(mime_type, io.BytesIO(data)) as reader:
+        with c2pa.Reader(mime_type, io.BytesIO(data), context=_context()) as reader:
             payload = json.loads(reader.json())
             state = reader.get_validation_state()
             try:
@@ -233,10 +277,12 @@ def inspect_absent(reason: str) -> C2paResult:
 
 
 __all__ = [
+    "TRUST_LIST",
     "C2paResult",
     "ProvenanceUnavailable",
     "inspect_bytes",
     "inspect_absent",
     "is_available",
     "supported_mime_types",
+    "trust_list_size",
 ]
