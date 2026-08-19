@@ -69,6 +69,63 @@ generated report.
 
 ---
 
+## Content credentials (cryptographic)
+
+C2PA is a signed manifest embedded in a file recording what produced it and what
+was done to it. Anthropic attaches one to files Claude produces, as do Adobe,
+Leica and others. It covers PDF, images, audio and video.
+
+This is the only provenance signal in the modern stack a third party can verify
+without a secret: the signature is checked against the certificate in the file,
+and the certificate against public trust anchors.
+
+### Integrity and trust are different questions
+
+The library reports three states, and collapsing them into one verdict is wrong
+in both directions:
+
+| State | Integrity | Trust | Means |
+| --- | --- | --- | --- |
+| `Trusted` | intact | recognised | Hashes match, signer chains to a known anchor |
+| `Valid` | intact | **unrecognised** | Hashes match, signer is not recognised |
+| `Invalid` | broken | unknown | A hash or signature failed |
+
+`Valid` is the dangerous one. Certificates are not scarce: anyone can issue one
+whose common name reads `Adobe Inc.` and sign a file with it. The manifest then
+validates perfectly and claims whatever its author chose. Presenting that as
+verified provenance would make this tool a laundering service for forged
+credentials, so `integrity` and `trust` are separate fields everywhere and the
+UI cannot render one without the other.
+
+### Tampering is not absence
+
+A file modified after signing reports `present: true, integrity: broken` with
+`assertion.dataHash.mismatch`. It must never report "no credential" — that path
+would let anyone strip provenance by corrupting the manifest and have the tool
+call the result clean. A regression test pins this, because the first tampered
+fixture written for it did exactly the wrong thing: a byte flipped in the PNG
+trailer made the whole file unparseable, which came back as absence.
+
+### AI declaration
+
+C2PA carries the IPTC `digitalSourceType` field. `trainedAlgorithmicMedia` and
+its relatives mean the content was produced by a generative model, and that is
+surfaced as `ai_declared`.
+
+### What this cannot do
+
+**Absence proves nothing.** Most files carry no credential at all, and saving,
+converting, screenshotting or re-encoding strips the ones that exist. `present:
+false` is a statement about the bytes in front of us, never about how the file
+was made.
+
+**A credential describes what the signer claims**, not what is true. Integrity
+tells you the file has not changed since signing. Trust tells you whether the
+signer is anyone in particular. Neither tells you the claim inside the manifest
+is honest.
+
+---
+
 ## Stylometry (probabilistic)
 
 ### Features
