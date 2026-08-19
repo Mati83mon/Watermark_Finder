@@ -30,6 +30,7 @@ from .extraction import SUPPORTED_EXTENSIONS, ExtractionError, extract
 from .llm_classifier import load_model, model_metrics
 from .perplexity import is_enabled as perplexity_enabled
 from .pipeline import AnalysisError, analyse
+from .sanitize import sanitize
 
 logger = logging.getLogger("tpl.api")
 
@@ -59,6 +60,28 @@ class AnalyzeResponse(BaseModel):
     request_id: str
     client_reference: str | None = None
     result: dict[str, Any]
+
+
+class SanitizeRequest(BaseModel):
+    text: str = Field(..., description="Raw document text, exactly as received.")
+    level: Literal["safe", "aggressive"] = Field(
+        "safe",
+        description=(
+            "'safe' keeps invisible characters this document's scripts genuinely "
+            "need (emoji joiners, Arabic and Indic ZWJ/ZWNJ, CJK variation "
+            "selectors) and says so. 'aggressive' removes every invisible "
+            "character and reports what that may have broken."
+        ),
+    )
+    normalize_homoglyphs: bool = Field(
+        False,
+        description=(
+            "Rewrite non-Latin look-alikes to Latin, but only where they sit "
+            "inside an otherwise-Latin word. Off by default: rewriting Cyrillic "
+            "inside genuinely Russian prose would corrupt it."
+        ),
+    )
+    client_reference: str | None = Field(None, max_length=128)
 
 
 class ErrorResponse(BaseModel):
@@ -209,6 +232,30 @@ def create_app() -> FastAPI:
             **result.as_dict(),
         }
 
+    @app.post(
+        "/sanitize",
+        tags=["analysis"],
+        dependencies=[Depends(require_api_key)],
+        responses={401: {"model": ErrorResponse}, 422: {"model": ErrorResponse}},
+    )
+    async def sanitize_endpoint(request: Request, payload: SanitizeRequest) -> dict[str, Any]:
+        settings = get_settings()
+        if len(payload.text) > settings.max_chars:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Text exceeds the {settings.max_chars} character limit",
+            )
+        result = sanitize(
+            payload.text,
+            level=payload.level,
+            normalize_homoglyphs=payload.normalize_homoglyphs,
+        )
+        return {
+            "request_id": getattr(request.state, "request_id", ""),
+            "client_reference": payload.client_reference,
+            **result.as_dict(),
+        }
+
     return app
 
 
@@ -219,4 +266,4 @@ def _constant_time_equals(left: str, right: str) -> bool:
     return result == 0
 
 
-__all__ = ["AnalyzeRequest", "AnalyzeResponse", "create_app"]
+__all__ = ["AnalyzeRequest", "AnalyzeResponse", "SanitizeRequest", "create_app"]

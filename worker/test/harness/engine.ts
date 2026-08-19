@@ -183,6 +183,32 @@ export function installEngineStub(options: EngineStubOptions = {}): EngineStub {
       });
     }
 
+    if (url.pathname === '/sanitize') {
+      const body = init?.body ? JSON.parse(String(init.body)) : {};
+      stub.calls[stub.calls.length - 1]!.body = body;
+      const text = String(body.text ?? '');
+      // Mirror the engine closely enough to be useful: drop tag characters,
+      // count what went, and leave everything else alone.
+      const cleaned = [...text].filter((ch) => {
+        const cp = ch.codePointAt(0)!;
+        return !(cp >= 0xe0000 && cp <= 0xe007f);
+      }).join('');
+      const removedTotal = [...text].length - [...cleaned].length;
+      return Response.json({
+        request_id: 'stub',
+        text: cleaned,
+        level: body.level ?? 'safe',
+        changed: removedTotal > 0,
+        removed: [],
+        removed_total: removedTotal,
+        replaced: [],
+        replaced_total: 0,
+        preserved: [],
+        preserved_total: 0,
+        warnings: [],
+      });
+    }
+
     if (url.pathname === '/analyze') {
       const body = init?.body ? JSON.parse(String(init.body)) : {};
       stub.calls[stub.calls.length - 1]!.body = body;

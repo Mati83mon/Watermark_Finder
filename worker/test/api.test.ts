@@ -630,3 +630,57 @@ describe('request tracing', () => {
 beforeEach(() => {
   active?.restore();
 });
+
+describe('POST /api/sanitize', () => {
+  const hidden = [...'id:42']
+    .map((ch) => String.fromCodePoint(0xe0000 + ch.charCodeAt(0)))
+    .join('');
+
+  it('strips hidden characters and returns the cleaned text', async () => {
+    const harness = await setup();
+    const response = await harness.request('/api/sanitize', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: `Confidential draft.${hidden}` }),
+    });
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { text: string; changed: boolean; removed_total: number };
+    expect(body.text).toBe('Confidential draft.');
+    expect(body.changed).toBe(true);
+    expect(body.removed_total).toBe(5);
+  });
+
+  it('requires a workspace token', async () => {
+    const harness = await setup();
+    const response = await harness.request('/api/sanitize', {
+      method: 'POST',
+      auth: false,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: 'hello' }),
+    });
+    expect(response.status).toBe(401);
+  });
+
+  it('rejects an unknown level', async () => {
+    const harness = await setup();
+    const response = await harness.request('/api/sanitize', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: 'hello', level: 'thorough' }),
+    });
+    expect(response.status).toBe(400);
+  });
+
+  it('stores nothing: sanitising is not an analysis', async () => {
+    const harness = await setup();
+    await harness.request('/api/sanitize', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: `Confidential draft.${hidden}` }),
+    });
+
+    const list = await harness.request('/api/analyses');
+    expect(((await list.json()) as { items: unknown[] }).items).toHaveLength(0);
+  });
+});

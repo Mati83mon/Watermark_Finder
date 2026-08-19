@@ -6,7 +6,7 @@
  * jitter. Client errors (4xx) are never retried - they will fail identically.
  */
 
-import type { AnalysisResult, Capabilities } from '@wf/shared';
+import type { AnalysisResult, Capabilities, SanitizeResult } from '@wf/shared';
 import { badGateway } from './errors';
 
 export interface SpaceClientOptions {
@@ -124,6 +124,33 @@ export class SpaceClient {
       throw badGateway('Analysis engine returned a malformed response');
     }
     return payload.result;
+  }
+
+  async sanitize(
+    text: string,
+    level: string,
+    normalizeHomoglyphs: boolean,
+    requestId?: string,
+  ): Promise<SanitizeResult> {
+    const response = await this.request(
+      '/sanitize',
+      {
+        method: 'POST',
+        headers: this.headers({ 'content-type': 'application/json' }),
+        body: JSON.stringify({
+          text,
+          level,
+          normalize_homoglyphs: normalizeHomoglyphs,
+        }),
+      },
+      requestId,
+    );
+
+    const payload = (await response.json()) as Partial<SanitizeResult>;
+    if (typeof payload?.text !== 'string') {
+      throw badGateway('Analysis engine returned a malformed response');
+    }
+    return payload as SanitizeResult;
   }
 
   async extract(

@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { formatDate, percent, RISK_CLASSES } from '@/lib/format';
 import { FindingList, SignalList } from '@/components/SignalList';
 import { ScoreCard } from '@/components/ScoreCard';
+import { SanitizePanel } from '@/components/SanitizePanel';
 import { TextHeatmap } from '@/components/TextHeatmap';
 
 interface ResultViewProps {
@@ -114,6 +115,8 @@ export function ResultView({ analysis, text, segments }: ResultViewProps) {
       ) : null}
 
       <FindingList findings={result.findings} />
+
+      {text ? <SanitizePanel text={text} filename={analysis.filename} /> : null}
 
       {text ? (
         <TextHeatmap text={text} segments={segments} signals={result.signals} />

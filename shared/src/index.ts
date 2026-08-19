@@ -283,6 +283,42 @@ export const STYLE_LABEL_TEXT: Record<StyleLabel, string> = {
  * dash frequency tells the reader something was found in the bytes when
  * nothing was.
  */
+export type SanitizeLevel = 'safe' | 'aggressive';
+
+export interface SanitizeChange {
+  offset: number;
+  codepoint: string;
+  name: string;
+  reason: string;
+}
+
+export interface SanitizeReplacement {
+  offset: number;
+  before: string;
+  after: string;
+  reason: string;
+}
+
+/**
+ * Result of stripping covert-channel characters from a document.
+ *
+ * `preserved` is not padding: a joiner that Arabic or an emoji sequence needs
+ * is also somewhere a mark can hide, so the safe level keeps it and says so
+ * rather than corrupting the text silently.
+ */
+export interface SanitizeResult {
+  text: string;
+  level: SanitizeLevel;
+  changed: boolean;
+  removed: SanitizeChange[];
+  removed_total: number;
+  replaced: SanitizeReplacement[];
+  replaced_total: number;
+  preserved: SanitizeChange[];
+  preserved_total: number;
+  warnings: string[];
+}
+
 export const WATERMARK_BASIS_NOTE: Record<WatermarkBasis, string> = {
   bytes: 'Deterministic: based on the actual bytes of the document.',
   stylistic:

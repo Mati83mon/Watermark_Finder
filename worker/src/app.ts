@@ -4,6 +4,7 @@ import { Hono } from 'hono';
 import { analysesRoutes } from './routes/analyses';
 import { metaRoutes } from './routes/meta';
 import { reportsRoutes } from './routes/reports';
+import { sanitizeRoutes } from './routes/sanitize';
 import { uploadsRoutes } from './routes/uploads';
 import type { AppContext } from './types';
 import { cors, errorHandler, notFoundHandler, rateLimit, requestId, requireWorkspace } from './middleware';
@@ -25,10 +26,13 @@ export function createApp(): Hono<AppContext> {
   app.use('/api/analyses/*', requireWorkspace);
   app.use('/api/uploads/*', requireWorkspace);
   app.use('/api/reports/*', requireWorkspace);
+  app.use('/api/sanitize/*', requireWorkspace);
+  app.use('/api/sanitize', requireWorkspace);
 
   app.route('/api/analyses', analysesRoutes);
   app.route('/api/uploads', uploadsRoutes);
   app.route('/api/reports', reportsRoutes);
+  app.route('/api/sanitize', sanitizeRoutes);
 
   app.get('/', (c) =>
     c.json({
@@ -51,6 +55,7 @@ export function createApp(): Hono<AppContext> {
         'GET    /api/reports',
         'GET    /api/reports/:id',
         'DELETE /api/reports/:id',
+        'POST   /api/sanitize',
       ],
     }),
   );

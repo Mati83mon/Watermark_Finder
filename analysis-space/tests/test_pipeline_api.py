@@ -226,3 +226,37 @@ def test_extract_endpoint_rejects_large_files(monkeypatch, client):
     reset_settings()
     response = client.post("/extract", files={"file": ("note.txt", b"x" * 64, "text/plain")})
     assert response.status_code == 413
+
+
+class TestSanitizeEndpoint:
+    def test_requires_a_key(self, monkeypatch):
+        monkeypatch.setenv("TPL_API_TOKEN", "s3cret-token")
+        reset_settings()
+        guarded = TestClient(create_app())
+        assert guarded.post("/sanitize", json={"text": "x"}).status_code == 401
+        allowed = guarded.post(
+            "/sanitize", json={"text": "x"}, headers={"X-API-Key": "s3cret-token"}
+        )
+        assert allowed.status_code == 200
+
+    def test_strips_a_tag_payload(self, client):
+        from tpl.preprocessing import encode_tag_characters
+
+        marked = "Confidential." + encode_tag_characters("id:WF-1")
+        response = client.post("/sanitize", json={"text": marked})
+        assert response.status_code == 200
+        body = response.json()
+        assert body["text"] == "Confidential."
+        assert body["changed"] is True
+        assert body["removed_total"] == len(marked) - len("Confidential.")
+
+    def test_reports_what_it_kept(self, client):
+        response = client.post("/sanitize", json={"text": "می‌خواهم"})
+        body = response.json()
+        assert body["text"] == "می‌خواهم"
+        assert body["preserved_total"] == 1
+        assert body["warnings"]
+
+    def test_rejects_an_unknown_level(self, client):
+        response = client.post("/sanitize", json={"text": "x", "level": "thorough"})
+        assert response.status_code == 422

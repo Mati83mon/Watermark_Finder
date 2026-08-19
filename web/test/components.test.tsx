@@ -1,6 +1,8 @@
-import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
-import type { Finding, Segment, Signal } from '@wf/shared';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import type { Finding, SanitizeResult, Segment, Signal } from '@wf/shared';
+import { api } from '@/lib/api';
+import { SanitizePanel } from '@/components/SanitizePanel';
 import { ScoreCard } from '@/components/ScoreCard';
 import { FindingList, SignalList } from '@/components/SignalList';
 import { TextHeatmap } from '@/components/TextHeatmap';
@@ -168,5 +170,63 @@ describe('formatting helpers', () => {
   it('truncates with an ellipsis only when needed', () => {
     expect(truncate('short', 10)).toBe('short');
     expect(truncate('a much longer string', 8)).toBe('a much …');
+  });
+});
+
+describe('SanitizePanel', () => {
+  const clean: SanitizeResult = {
+    text: 'Confidential draft.',
+    level: 'safe',
+    changed: true,
+    removed: [],
+    removed_total: 5,
+    replaced: [],
+    replaced_total: 0,
+    preserved: [
+      {
+        offset: 4,
+        codepoint: 'U+200C',
+        name: 'ZERO WIDTH NON-JOINER',
+        reason: 'joins an emoji sequence or a script that spells words with it',
+      },
+    ],
+    preserved_total: 1,
+    warnings: ['1 invisible character(s) were kept because this document needs them.'],
+  };
+
+  it('explains what each level does before the user picks one', () => {
+    render(<SanitizePanel text="hello" filename="draft.txt" />);
+    expect(screen.getByText(/Keeps invisible characters this document genuinely needs/)).toBeInTheDocument();
+  });
+
+  it('says plainly that nothing is stored', () => {
+    render(<SanitizePanel text="hello" filename={null} />);
+    expect(screen.getByText(/never written to\s+the database/)).toBeInTheDocument();
+  });
+
+  it('reports removals, replacements and what it deliberately kept', async () => {
+    vi.spyOn(api, 'sanitize').mockResolvedValue(clean);
+    render(<SanitizePanel text="hello" filename="draft.txt" />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clean document' }));
+
+    expect(await screen.findByText('5')).toBeInTheDocument();
+    expect(screen.getByText(/Kept on purpose/)).toBeInTheDocument();
+    // The gap the safe level leaves is surfaced, not hidden.
+    expect(
+      screen.getByText(/kept because this document needs them/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/What was kept, and why/)).toBeInTheDocument();
+  });
+
+  it('offers the cleaned text only once there is a result', async () => {
+    vi.spyOn(api, 'sanitize').mockResolvedValue(clean);
+    render(<SanitizePanel text="hello" filename="draft.txt" />);
+
+    expect(screen.queryByRole('button', { name: /Download/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Clean document' }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Download/ })).toBeInTheDocument(),
+    );
   });
 });

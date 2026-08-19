@@ -13,6 +13,8 @@ import type {
   AnalysisMode,
   AnalysisStatus,
   AnalysisSummary,
+  SanitizeLevel,
+  SanitizeResult,
   ApiError,
   Capabilities,
   Paginated,
@@ -219,6 +221,16 @@ export const api = {
       body: input.uploadId
         ? { upload_id: input.uploadId, mode: input.mode }
         : { text: input.text, mode: input.mode },
+    }),
+
+  sanitize: (input: { text: string; level?: SanitizeLevel; normalizeHomoglyphs?: boolean }) =>
+    request<SanitizeResult>('/api/sanitize', {
+      method: 'POST',
+      body: {
+        text: input.text,
+        level: input.level ?? 'safe',
+        normalize_homoglyphs: input.normalizeHomoglyphs ?? false,
+      },
     }),
 
   listAnalyses: (
