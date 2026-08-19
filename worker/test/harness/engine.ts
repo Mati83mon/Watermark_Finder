@@ -209,6 +209,35 @@ export function installEngineStub(options: EngineStubOptions = {}): EngineStub {
       });
     }
 
+    if (url.pathname === '/mark') {
+      const body = init?.body ? JSON.parse(String(init.body)) : {};
+      stub.calls[stub.calls.length - 1]!.body = body;
+      const recipients: string[] = body.recipients ?? [];
+      const template: string = body.template ?? '{recipient}';
+      return Response.json({
+        request_id: 'stub',
+        channel: body.channel ?? 'tag_characters',
+        copies: recipients.map((recipient, i) => {
+          const payload = template
+            .replace('{recipient}', recipient)
+            .replace(/\{index[^}]*\}/, String(i + 1));
+          const carrier = [...payload]
+            .map((ch) => String.fromCodePoint(0xe0000 + ch.charCodeAt(0)))
+            .join('');
+          return {
+            recipient,
+            payload,
+            text: `${body.text}${carrier}`,
+            channel: body.channel ?? 'tag_characters',
+            carrier_chars: [...carrier].length,
+            copies_embedded: body.repeat ?? 2,
+            verified: true,
+          };
+        }),
+        warnings: ['Exporting to PDF destroys the mark.'],
+      });
+    }
+
     if (url.pathname === '/analyze') {
       const body = init?.body ? JSON.parse(String(init.body)) : {};
       stub.calls[stub.calls.length - 1]!.body = body;

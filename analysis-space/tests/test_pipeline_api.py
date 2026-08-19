@@ -260,3 +260,40 @@ class TestSanitizeEndpoint:
     def test_rejects_an_unknown_level(self, client):
         response = client.post("/sanitize", json={"text": "x", "level": "thorough"})
         assert response.status_code == 422
+
+
+class TestMarkEndpoint:
+    DOC = "Zdanie pierwsze. Zdanie drugie. Zdanie trzecie i ostatnie."
+
+    def test_produces_one_distinct_copy_per_recipient(self, client):
+        response = client.post(
+            "/mark",
+            json={"text": self.DOC, "recipients": ["Jan", "Anna"], "template": "WF-{index:03d}"},
+        )
+        assert response.status_code == 200
+        copies = response.json()["copies"]
+        assert [c["payload"] for c in copies] == ["WF-001", "WF-002"]
+        assert len({c["text"] for c in copies}) == 2
+        assert all(c["verified"] for c in copies)
+
+    def test_always_warns_that_pdf_destroys_the_mark(self, client):
+        response = client.post("/mark", json={"text": self.DOC, "recipients": ["Jan"]})
+        warnings = " ".join(response.json()["warnings"])
+        assert "PDF" in warnings
+        assert "not secret" in warnings
+
+    def test_rejects_duplicate_recipients(self, client):
+        response = client.post("/mark", json={"text": self.DOC, "recipients": ["Jan", "Jan"]})
+        assert response.status_code == 422
+        assert "distinct" in response.json()["detail"]
+
+    def test_rejects_an_unknown_channel(self, client):
+        response = client.post(
+            "/mark",
+            json={"text": self.DOC, "recipients": ["Jan"], "channel": "steganography"},
+        )
+        assert response.status_code == 422
+
+    def test_requires_at_least_one_recipient(self, client):
+        response = client.post("/mark", json={"text": self.DOC, "recipients": []})
+        assert response.status_code == 422

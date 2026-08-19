@@ -28,6 +28,7 @@ from pydantic import BaseModel, Field
 from .config import SCHEMA_VERSION, VERSION, get_settings
 from .extraction import SUPPORTED_EXTENSIONS, ExtractionError, extract
 from .llm_classifier import load_model, model_metrics
+from .marking import CHANNELS, MarkingError, mark_for_recipients
 from .perplexity import is_enabled as perplexity_enabled
 from .pipeline import AnalysisError, analyse
 from .sanitize import sanitize
@@ -82,6 +83,32 @@ class SanitizeRequest(BaseModel):
         ),
     )
     client_reference: str | None = Field(None, max_length=128)
+
+
+class MarkRequest(BaseModel):
+    text: str = Field(..., description="Document to mark. Returned unchanged to the reader.")
+    recipients: list[str] = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="One distinct copy is produced per recipient.",
+    )
+    template: str = Field(
+        "{recipient}",
+        max_length=128,
+        description=(
+            "Payload written into each copy. Accepts {recipient} and {index}. "
+            "Use an opaque form such as 'WF-{index:03d}' when the recipient's "
+            "name should not be readable inside the document."
+        ),
+    )
+    channel: str = Field(
+        "tag_characters",
+        description=f"Carrier to use. One of: {', '.join(CHANNELS)}.",
+    )
+    repeat: int = Field(
+        2, ge=1, le=20, description="How many times the payload is embedded across the document."
+    )
 
 
 class ErrorResponse(BaseModel):
@@ -256,6 +283,44 @@ def create_app() -> FastAPI:
             **result.as_dict(),
         }
 
+    @app.post(
+        "/mark",
+        tags=["analysis"],
+        dependencies=[Depends(require_api_key)],
+        responses={401: {"model": ErrorResponse}, 422: {"model": ErrorResponse}},
+    )
+    async def mark_endpoint(request: Request, payload: MarkRequest) -> dict[str, Any]:
+        settings = get_settings()
+        if len(payload.text) > settings.max_chars:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Text exceeds the {settings.max_chars} character limit",
+            )
+        try:
+            copies = mark_for_recipients(
+                payload.text,
+                payload.recipients,
+                template=payload.template,
+                channel=payload.channel,
+                repeat=payload.repeat,
+            )
+        except MarkingError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+        return {
+            "request_id": getattr(request.state, "request_id", ""),
+            "channel": payload.channel,
+            "copies": [copy.as_dict() for copy in copies],
+            "warnings": [
+                "Save and share these as .txt, .docx or .md. Exporting to PDF "
+                "destroys the mark: measured, DOCX preserved 9 of 9 carrier "
+                "characters and PDF preserved 0 of 9.",
+                "The mark is not secret. Anyone running this tool on a marked "
+                "copy reads the payload, and its sanitiser removes it entirely. "
+                "This traces honest recipients; it does not defeat an adversary.",
+            ],
+        }
+
     return app
 
 
@@ -266,4 +331,4 @@ def _constant_time_equals(left: str, right: str) -> bool:
     return result == 0
 
 
-__all__ = ["AnalyzeRequest", "AnalyzeResponse", "SanitizeRequest", "create_app"]
+__all__ = ["AnalyzeRequest", "AnalyzeResponse", "MarkRequest", "SanitizeRequest", "create_app"]

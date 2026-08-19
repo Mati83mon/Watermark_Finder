@@ -319,6 +319,34 @@ export interface SanitizeResult {
   warnings: string[];
 }
 
+export type MarkChannel = 'tag_characters' | 'variation_selectors' | 'zero_width_binary';
+
+export interface MarkedCopy {
+  recipient: string;
+  payload: string;
+  text: string;
+  channel: MarkChannel;
+  carrier_chars: number;
+  copies_embedded: number;
+  /** The engine decoded the mark back out before returning the copy. */
+  verified: boolean;
+}
+
+export interface MarkResult {
+  channel: MarkChannel;
+  copies: MarkedCopy[];
+  warnings: string[];
+}
+
+export const MARK_CHANNEL_NOTE: Record<MarkChannel, string> = {
+  tag_characters:
+    'One invisible codepoint per character. Printable ASCII payloads only. Survives copy-paste between most editors.',
+  variation_selectors:
+    'One codepoint per byte, so accented and non-Latin payloads fit.',
+  zero_width_binary:
+    'Eight codepoints per byte. Bulky, but built only from common zero-width characters that some pipelines pass through.',
+};
+
 export const WATERMARK_BASIS_NOTE: Record<WatermarkBasis, string> = {
   bytes: 'Deterministic: based on the actual bytes of the document.',
   stylistic:

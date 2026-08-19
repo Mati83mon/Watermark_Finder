@@ -684,3 +684,69 @@ describe('POST /api/sanitize', () => {
     expect(((await list.json()) as { items: unknown[] }).items).toHaveLength(0);
   });
 });
+
+describe('POST /api/mark', () => {
+  const doc = 'Zdanie pierwsze. Zdanie drugie. Zdanie trzecie.';
+
+  it('returns one distinct copy per recipient', async () => {
+    const harness = await setup();
+    const response = await harness.request('/api/mark', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: doc, recipients: ['Jan', 'Anna'], template: 'WF-{index}' }),
+    });
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      copies: { recipient: string; payload: string; text: string; verified: boolean }[];
+      warnings: string[];
+    };
+    expect(body.copies).toHaveLength(2);
+    expect(new Set(body.copies.map((c) => c.text)).size).toBe(2);
+    expect(body.copies.every((c) => c.verified)).toBe(true);
+    expect(body.warnings.join(' ')).toContain('PDF');
+  });
+
+  it('rejects duplicate recipients before reaching the engine', async () => {
+    const harness = await setup();
+    const response = await harness.request('/api/mark', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: doc, recipients: ['Jan', 'Jan'] }),
+    });
+    expect(response.status).toBe(400);
+    expect(harness.engine.calls.some((call) => call.path === '/mark')).toBe(false);
+  });
+
+  it('rejects an empty recipient list', async () => {
+    const harness = await setup();
+    const response = await harness.request('/api/mark', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: doc, recipients: [] }),
+    });
+    expect(response.status).toBe(400);
+  });
+
+  it('requires a workspace token', async () => {
+    const harness = await setup();
+    const response = await harness.request('/api/mark', {
+      method: 'POST',
+      auth: false,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: doc, recipients: ['Jan'] }),
+    });
+    expect(response.status).toBe(401);
+  });
+
+  it('stores nothing: the documents people mark are confidential', async () => {
+    const harness = await setup();
+    await harness.request('/api/mark', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: doc, recipients: ['Jan'] }),
+    });
+    const list = await harness.request('/api/analyses');
+    expect(((await list.json()) as { items: unknown[] }).items).toHaveLength(0);
+  });
+});

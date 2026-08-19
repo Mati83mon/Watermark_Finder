@@ -13,6 +13,8 @@ import type {
   AnalysisMode,
   AnalysisStatus,
   AnalysisSummary,
+  MarkChannel,
+  MarkResult,
   SanitizeLevel,
   SanitizeResult,
   ApiError,
@@ -221,6 +223,24 @@ export const api = {
       body: input.uploadId
         ? { upload_id: input.uploadId, mode: input.mode }
         : { text: input.text, mode: input.mode },
+    }),
+
+  mark: (input: {
+    text: string;
+    recipients: string[];
+    template?: string;
+    channel?: MarkChannel;
+    repeat?: number;
+  }) =>
+    request<MarkResult>('/api/mark', {
+      method: 'POST',
+      body: {
+        text: input.text,
+        recipients: input.recipients,
+        template: input.template ?? '{recipient}',
+        channel: input.channel ?? 'tag_characters',
+        repeat: input.repeat ?? 2,
+      },
     }),
 
   sanitize: (input: { text: string; level?: SanitizeLevel; normalizeHomoglyphs?: boolean }) =>
