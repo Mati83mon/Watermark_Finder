@@ -182,8 +182,8 @@ pokazuje liczby.
 
 | Ścieżka | Co to jest |
 | --- | --- |
-| [`analysis-space/`](analysis-space/) | Silnik FastAPI — skanowanie Unicode, dekodery, stylometria, generator raportów. Działa na Hugging Face Space. |
-| [`worker/`](worker/) | API na Cloudflare Worker — routing, walidacja, autoryzacja, rate limiting, orkiestracja zadań, D1/KV/R2. |
+| [`analysis-space/`](analysis-space/) | Silnik FastAPI — skanowanie Unicode, dekodery payloadów, znakowanie canary, sanityzacja świadoma kontekstu, weryfikacja C2PA, stylometria, generator raportów. Działa na Hugging Face Space. |
+| [`worker/`](worker/) | API na Cloudflare Worker — routing, walidacja, autoryzacja, rate limiting, orkiestracja zadań, D1/KV/R2. Znakowanie, sanityzacja i sprawdzanie poświadczeń są bezstanowe i nic nie zapisują. |
 | [`web/`](web/) | Frontend Next.js 14, eksport statyczny, Cloudflare Pages. |
 | [`shared/`](shared/) | Typy TypeScript wspólne dla Workera i frontendu. |
 | [`examples/`](examples/README.pl.md) | Sześć dokumentów ze znakami wodnymi i zmierzonymi wynikami. |
@@ -260,19 +260,19 @@ Pełny kontrakt: [`docs/api-spec.md`](docs/api-spec.md).
 ## Testy
 
 ```bash
-npm test                                  # Worker (64) + web (44)
-cd analysis-space && pytest               # silnik (85)
+npm test                                  # Worker (78) + web (52)
+cd analysis-space && pytest               # silnik (151)
 python examples/generate.py --verify      # sześć przykładów
 ```
 
-193 testy. D1 w testach Workera to **prawdziwa** baza SQLite w pamięci,
+281 testów. D1 w testach Workera to **prawdziwa** baza SQLite w pamięci,
 wykonująca produkcyjne pliki migracji, więc SQL jest naprawdę uruchamiany, a nie
 zamockowany. Osobny zestaw end-to-end steruje prawdziwym Workerem przeciwko
 prawdziwemu silnikowi w Pythonie:
 
 ```bash
 cd analysis-space && TPL_API_TOKEN=e2e-secret uvicorn app:app --port 7860 &
-cd worker && npx tsx test/e2e.manual.ts   # 24 sprawdzenia
+cd worker && npx tsx test/e2e.manual.ts   # 37 sprawdzenia
 ```
 
 CI uruchamia wszystkie cztery zestawy przy każdym pushu, na każdej gałęzi. Dwa

@@ -181,8 +181,8 @@ sets out every known failure mode; the app repeats them wherever numbers appear.
 
 | Path | What it is |
 | --- | --- |
-| [`analysis-space/`](analysis-space/) | FastAPI engine — Unicode scanning, decoders, stylometry, report builder. Runs on a Hugging Face Space. |
-| [`worker/`](worker/) | Cloudflare Worker API — routing, validation, auth, rate limiting, job orchestration, D1/KV/R2. |
+| [`analysis-space/`](analysis-space/) | FastAPI engine — Unicode scanning, payload decoders, canary marking, context-aware sanitising, C2PA verification, stylometry, report builder. Runs on a Hugging Face Space. |
+| [`worker/`](worker/) | Cloudflare Worker API — routing, validation, auth, rate limiting, job orchestration, D1/KV/R2. Marking, sanitising and credential checks are stateless and store nothing. |
 | [`web/`](web/) | Next.js 14 frontend, static export, Cloudflare Pages. |
 | [`shared/`](shared/) | TypeScript types shared by Worker and frontend. |
 | [`examples/`](examples/README.md) | Six watermarked documents with measured results. |
@@ -259,18 +259,18 @@ Full contract: [`docs/api-spec.md`](docs/api-spec.md).
 ## Tests
 
 ```bash
-npm test                                  # Worker (64) + web (44)
-cd analysis-space && pytest               # engine (85)
+npm test                                  # Worker (78) + web (52)
+cd analysis-space && pytest               # engine (151)
 python examples/generate.py --verify      # the six examples
 ```
 
-193 tests. The Worker's D1 is a **real** in-memory SQLite database running the
+281 tests. The Worker's D1 is a **real** in-memory SQLite database running the
 production migration files, so the SQL is genuinely executed rather than mocked.
 An end-to-end suite drives the real Worker against the real Python engine:
 
 ```bash
 cd analysis-space && TPL_API_TOKEN=e2e-secret uvicorn app:app --port 7860 &
-cd worker && npx tsx test/e2e.manual.ts   # 24 checks
+cd worker && npx tsx test/e2e.manual.ts   # 37 checks
 ```
 
 CI runs all four suites on every push, on any branch. The two deploy workflows

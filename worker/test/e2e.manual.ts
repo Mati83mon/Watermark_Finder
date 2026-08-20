@@ -15,6 +15,7 @@
  * detection that the unit tests can only stub.
  */
 
+import { readFile } from 'node:fs/promises';
 import { createApp } from '../src/app';
 import { Database } from '../src/lib/db';
 import { createTestEnv, TestExecutionContext } from './harness/bindings';
@@ -199,6 +200,101 @@ frame was his brother's in 1994. I don't believe him!`,
     .then(() => true)
     .catch(() => false);
   check('database still queryable at the end', events);
+
+  // The full loop against the real engine: mark a document, detect the mark in
+  // the copy, strip it, and confirm the stripped copy is byte-identical to what
+  // we started with. Unit tests cover each leg against a stub; this is the only
+  // place the three of them meet real Python.
+  console.log('\nmark -> detect -> clean');
+  const CONTRACT =
+    'Umowa o zachowaniu poufnosci. Strony zobowiazuja sie do nieujawniania informacji. ' +
+    'Naruszenie skutkuje kara umowna. Umowa wchodzi w zycie z dniem podpisania.';
+
+  const marked = (await (
+    await call('/api/mark', {
+      method: 'POST',
+      token,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        text: CONTRACT,
+        recipients: ['Jan', 'Anna', 'Piotr'],
+        template: 'WF-{index:03d}',
+      }),
+    })
+  ).json()) as {
+    copies: { recipient: string; payload: string; text: string; verified: boolean }[];
+    warnings: string[];
+  };
+
+  check('one copy per recipient', marked.copies?.length === 3, String(marked.copies?.length));
+  check('every copy verified by decoding it back', marked.copies.every((c) => c.verified));
+  check('copies differ from one another', new Set(marked.copies.map((c) => c.text)).size === 3);
+  check('the PDF warning is always attached', marked.warnings.join(' ').includes('PDF'));
+
+  // Anna's copy "leaks": the engine must name that copy and no other.
+  const leaked = marked.copies[1]!;
+  const traced = (await (
+    await call('/api/analyses', {
+      method: 'POST',
+      token,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: leaked.text, mode: 'forensic' }),
+    })
+  ).json()) as { id: string };
+  await ctx.settle();
+  const tracedDetail = (await (
+    await call(`/api/analyses/${traced.id}`, { token })
+  ).json()) as { result: { payloads: { text: string }[] } | null };
+  const recovered = tracedDetail.result?.payloads[0]?.text ?? '';
+  check('a marked copy is traced back to its recipient', recovered.includes(leaked.payload),
+    `${recovered} vs ${leaked.payload}`);
+  check('no other recipient appears in the trace',
+    !marked.copies.filter((c) => c !== leaked).some((c) => recovered.includes(c.payload)));
+
+  const cleaned = (await (
+    await call('/api/sanitize', {
+      method: 'POST',
+      token,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: leaked.text, level: 'safe' }),
+    })
+  ).json()) as { text: string; removed_total: number; changed: boolean };
+  check('sanitising restores the original document byte for byte',
+    cleaned.text === CONTRACT, `${cleaned.text.length} vs ${CONTRACT.length}`);
+  check('sanitising reports what it removed', cleaned.removed_total > 0 && cleaned.changed);
+
+  // The tool must not privilege marks it created itself.
+  const rescanned = (await (
+    await call('/api/analyses', {
+      method: 'POST',
+      token,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: cleaned.text, mode: 'quick' }),
+    })
+  ).json()) as { id: string };
+  await ctx.settle();
+  const rescanDetail = (await (
+    await call(`/api/analyses/${rescanned.id}`, { token })
+  ).json()) as { result: { payloads: unknown[] } | null };
+  check('the cleaned copy carries no payload',
+    (rescanDetail.result?.payloads.length ?? -1) === 0);
+
+  console.log('\ncontent credentials');
+  const signed = await readFile(
+    new URL('../../analysis-space/tests/fixtures/c2pa/ai-generated.png', import.meta.url),
+  );
+  const credentialForm = new FormData();
+  credentialForm.append('file', new Blob([signed], { type: 'image/png' }), 'ai-generated.png');
+  const credential = (await (
+    await call('/api/c2pa', { method: 'POST', token, body: credentialForm })
+  ).json()) as { present: boolean; integrity: string; trust: string; ai_declared: boolean };
+
+  check('a signed file is read', credential.present === true);
+  check('integrity is reported intact', credential.integrity === 'intact');
+  // The fixture CA is deliberately not a C2PA authority: trust must refuse it
+  // even though the signature itself verifies.
+  check('an unlisted signer is refused', credential.trust === 'unrecognised');
+  check('declared AI authorship is surfaced', credential.ai_declared === true);
 
   console.log(`\n${failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`}\n`);
   process.exit(failures === 0 ? 0 : 1);
