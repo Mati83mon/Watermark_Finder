@@ -169,6 +169,16 @@ class FeatureSet:
     n_sentences: int
     n_paragraphs: int
     n_chars: int
+    #: Size of the document as submitted. The counts above describe the prose
+    #: that was actually measured, which is smaller whenever fenced code blocks
+    #: were dropped. Both are needed: the model reasons about how much prose it
+    #: had, while a report that states a size has to state the document's.
+    n_chars_source: int = 0
+    n_words_source: int = 0
+
+    @property
+    def excluded_chars(self) -> int:
+        return max(0, self.n_chars_source - self.n_chars)
 
     def vector(self) -> list[float]:
         return [self.values[name] for name in FEATURE_ORDER]
@@ -218,6 +228,8 @@ def extract_features(text: str, language: str | None = None) -> FeatureSet:
     counting them measures the layout of a listing rather than how somebody
     writes. See :func:`prose_only`.
     """
+    source_chars = len(text)
+    source_words = len(words(text))
     text = prose_only(text)
     language = language or detect_language(text).code
     sentences: list[Span] = split_sentences(text)
@@ -306,6 +318,8 @@ def extract_features(text: str, language: str | None = None) -> FeatureSet:
         n_sentences=len(sentences),
         n_paragraphs=len(paragraphs),
         n_chars=len(text),
+        n_chars_source=source_chars,
+        n_words_source=source_words,
     )
 
 

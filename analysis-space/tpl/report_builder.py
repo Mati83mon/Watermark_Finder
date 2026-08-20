@@ -208,8 +208,14 @@ def build_markdown_report(
     add(f"- **Engine**: text-provenance-lab {engine_version}")
     add(f"- **Document SHA-256**: `{pre.sha256}`")
     add(
-        f"- **Size**: {features.n_chars} characters, {features.n_words} words, "
-        f"{features.n_sentences} sentences, {features.n_paragraphs} paragraphs"
+        f"- **Size**: {features.n_chars_source} characters, "
+        f"{features.n_words_source} words"
+        + (
+            f" ({features.n_chars} characters of prose measured; "
+            f"{features.excluded_chars} in fenced code blocks were excluded)"
+            if features.excluded_chars
+            else f", {features.n_sentences} sentences, {features.n_paragraphs} paragraphs"
+        )
     )
     add(f"- **Detected language**: {features.language}")
     add(f"- **Overall risk**: {_fmt_pct(risk)} ({risk_label(risk)})")

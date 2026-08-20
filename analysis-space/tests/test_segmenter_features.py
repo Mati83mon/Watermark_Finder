@@ -147,3 +147,37 @@ class TestCodeBlocksAreNotProse:
 
         text = "Real prose here.\n```\ncode\n"
         assert "Real prose here." in prose_only(text)
+
+
+class TestReportedSizeDescribesTheDocument:
+    """A report that states a size has to state the document's size.
+
+    Excluding fenced blocks from measurement made the header read "9049
+    characters" for an 18685-character file, while the segment table in the
+    same report listed offsets up to 18688 and the SHA-256 covered the whole
+    thing. One report cannot disagree with itself about how big the document is.
+    """
+
+    DOC = "Prose before.\n\n```\ncode  aligned  here\nmore  code\n```\n\nProse after.\n"
+
+    def test_source_counts_cover_the_whole_document(self):
+        f = extract_features(self.DOC)
+        assert f.n_chars_source == len(self.DOC)
+
+    def test_measured_counts_cover_the_prose_only(self):
+        f = extract_features(self.DOC)
+        assert f.n_chars < f.n_chars_source
+        assert f.excluded_chars > 0
+
+    def test_a_document_without_code_reports_one_size(self):
+        plain = "Just prose here. And a second sentence for good measure.\n"
+        f = extract_features(plain)
+        assert f.n_chars == f.n_chars_source
+        assert f.excluded_chars == 0
+
+    def test_the_report_states_the_document_size_and_says_what_it_excluded(self):
+        from tpl.pipeline import analyse
+
+        report = analyse(self.DOC, "quick")["technical_report_markdown"]
+        assert f"**Size**: {len(self.DOC)} characters" in report
+        assert "excluded" in report

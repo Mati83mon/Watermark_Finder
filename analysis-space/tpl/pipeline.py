@@ -266,8 +266,10 @@ def analyse(
             "style_model_trained": style.trained,
         },
         "input": {
-            "chars": features.n_chars,
-            "words": features.n_words,
+            "chars": features.n_chars_source,
+            "words": features.n_words_source,
+            "chars_measured": features.n_chars,
+            "words_measured": features.n_words,
             "sentences": features.n_sentences,
             "paragraphs": features.n_paragraphs,
             "language": features.language,
