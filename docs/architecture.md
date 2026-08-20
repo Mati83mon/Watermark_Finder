@@ -127,7 +127,7 @@ budget.
 
 | Layer | Approach | Count |
 | --- | --- | --- |
-| Engine | pytest over pure functions and the FastAPI app via `TestClient` | 156 |
+| Engine | pytest over pure functions and the FastAPI app via `TestClient` | 162 |
 | Worker | vitest driving the real Hono app; D1 is real SQLite (`node:sqlite`) running the production migrations; KV/R2 are in-memory doubles; the engine is a stub | 78 |
 | Web | vitest + Testing Library over the API client, heatmap maths and components | 52 |
 | Integration | `worker/test/e2e.manual.ts` drives the real Worker against the real Python engine, asserting a planted payload is recovered end to end, then marks a document, traces the leaked copy, sanitises it back to the original byte for byte, and reads a signed C2PA fixture | 37 checks |

@@ -201,11 +201,53 @@ TYPOGRAPHIC_PUNCTUATION: dict[int, str] = {
 }
 
 
+#: Variation selectors 15 and 16 choose text or emoji presentation for the
+#: character before them. ``U+26A0`` renders as a plain glyph; ``U+26A0 U+FE0F``
+#: renders as the warning emoji. They are ordinary text, not a covert channel.
+VS_TEXT = 0xFE0E
+VS_EMOJI = 0xFE0F
+
+
+def _is_pictographic(cp: int) -> bool:
+    return (
+        0x1F000 <= cp <= 0x1FAFF
+        or 0x2600 <= cp <= 0x27BF
+        or 0x2190 <= cp <= 0x21FF
+        or 0x2B00 <= cp <= 0x2BFF
+        or 0x3030 <= cp <= 0x303D
+        or cp in (0x00A9, 0x00AE, 0x203C, 0x2049, 0x2122, 0x2139)
+    )
+
+
+def is_presentation_selector(text: str, offset: int) -> bool:
+    """True when the selector at ``offset`` is doing presentation, not hiding data.
+
+    Three conditions, all required. It has to be VS15 or VS16 - the other
+    selectors carry no presentation meaning. It has to sit directly after a
+    pictographic character, which is the only place presentation applies. And it
+    has to be alone: one selector styles the glyph before it, whereas a run of
+    them after a single base is how a payload is written.
+
+    Without this, any document containing a warning sign or a tick was reported
+    as carrying a watermark, while `tpl.sanitize` - correctly - refused to
+    remove the same characters. Two parts of the codebase cannot disagree about
+    what a byte means.
+    """
+    if offset >= len(text) or ord(text[offset]) not in (VS_TEXT, VS_EMOJI):
+        return False
+    if offset == 0 or not _is_pictographic(ord(text[offset - 1])):
+        return False
+    following = offset + 1
+    return following >= len(text) or ord(text[following]) not in (VS_TEXT, VS_EMOJI)
+
+
 def iter_suspicious(text: str) -> Iterable[tuple[int, int, str, str]]:
     """Yield ``(offset, codepoint, category, name)`` for every suspicious char."""
     for offset, char in enumerate(text):
         cp = ord(char)
         if cp < 0x00A0:  # fast path: plain ASCII and C1 controls are handled elsewhere
+            continue
+        if is_presentation_selector(text, offset):
             continue
         hit = classify_codepoint(cp)
         if hit is not None:

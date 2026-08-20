@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from tpl.preprocessing import (
+    decode_payloads,
     decode_tag_characters,
     decode_variation_selectors,
     decode_zero_width_binary,
@@ -159,3 +160,45 @@ def test_real_payloads_still_decode_after_the_stricter_check():
         decoded = decode_zero_width_binary(text)
         assert decoded is not None, payload
         assert decoded.text == payload
+
+
+class TestEmojiPresentationIsNotAWatermark:
+    """The scanner and the sanitiser cannot disagree about what a byte means.
+
+    A model card containing `⚠️` was reported as `watermark suspected` at 60%
+    on the strength of three U+FE0F codepoints, while `tpl.sanitize` looked at
+    the same characters and refused to remove them because they are "emoji
+    presentation, not a carrier". Both statements shipped in the same release.
+
+    U+FE0F after a pictographic base is what makes ⚠️ an emoji rather than a
+    dingbat. It is ordinary text and every document with a tick or a warning
+    sign was being flagged for it.
+    """
+
+    def test_an_emoji_selector_is_not_reported(self):
+        assert scan_characters("Uwaga ⚠️ koniec.") == []
+
+    def test_a_document_of_emoji_stays_clean(self):
+        assert scan_characters("✅ done ❤️ thanks ⚠️ careful") == []
+
+    def test_a_selector_with_no_pictographic_base_is_still_reported(self):
+        # Nothing to style: this is a carrier wearing a costume.
+        assert scan_characters("plain text️ here") != []
+
+    def test_a_run_of_selectors_after_an_emoji_is_still_a_payload(self):
+        # The exemption covers one selector styling the glyph before it. A run
+        # of them after a single base is how a payload is written, and must not
+        # be able to hide behind the emoji rule.
+        marked = "Uwaga ⚠" + encode_variation_selectors("hidden")
+        assert decode_payloads(marked)[0].text == "hidden"
+
+    def test_a_real_payload_is_untouched_by_the_exemption(self):
+        marked = "Poufna umowa." + encode_variation_selectors("leak-42")
+        assert decode_payloads(marked)[0].text == "leak-42"
+
+    def test_the_scanner_and_the_sanitiser_now_agree(self):
+        from tpl.sanitize import sanitize
+
+        text = "⚠️ IMPORTANT ✅ done"
+        assert scan_characters(text) == []
+        assert sanitize(text, level="safe").text == text

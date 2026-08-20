@@ -27,6 +27,24 @@ indicate a deliberate encoding, whereas a couple of zero-width characters picked
 up from a web page do not. The gap-regularity term is
 `1 - stdev(gaps)/mean(gaps)`, clipped to `[0, 1]`.
 
+#### Emoji presentation selectors are not carriers
+
+`U+FE0F` after a pictographic character is what makes `⚠` render as ⚠️ rather
+than a dingbat. It is ordinary text, and a document containing a tick or a
+warning sign was being reported as `watermark suspected` at 60% on the strength
+of three of them.
+
+The scanner now skips a selector that meets all three conditions: it is VS15 or
+VS16, it directly follows a pictographic character, and it stands alone. A run
+of selectors after a single base is how a payload is written, so the exemption
+cannot be used to hide one — there is a test for exactly that attack.
+
+This was an internal contradiction as much as a false positive: `tpl.sanitize`
+already refused to remove these characters, calling them "emoji presentation,
+not a carrier", while the scanner called the same bytes "the standard carriers
+for text watermarks". Both statements shipped in the same release. The rule now
+lives in `unicode_tables.is_presentation_selector` and both modules read it.
+
 ### Decoded payloads
 
 Three encodings are decoded outright. A successful decode floors the watermark
