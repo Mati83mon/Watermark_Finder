@@ -7,6 +7,14 @@
 
 🇬🇧 [This document in English](README.md) · [Przykłady z prawdziwymi wynikami](examples/README.pl.md)
 
+
+> **Status wersji na żywo.** Silnik analizy stoi na Hugging Face Space na
+> płatnym hardware i jest pauzowany, gdy skończą się środki. Wtedy strona się
+> ładuje i mówi o tym w nagłówku, ale analizy się nie kończą. Wszystko w tym
+> repozytorium działa lokalnie, bez konta i bez kosztów — zobacz
+> [Uruchom u siebie](#uruchom-u-siebie). Dlaczego darmowy tier nie wchodzi w
+> grę, opisuje [`docs/deployment.md`](docs/deployment.md).
+
 Oznacz dokument niewidocznie, znajdź znak w dokumencie, który dostałeś, albo
 usuń go, zanim przekażesz dokument dalej. Znaki zerowej szerokości, payloady w
 znakach tagowych Unicode, podmiany na homoglify. Ocenia też, na ile tekst czyta

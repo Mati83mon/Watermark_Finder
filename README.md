@@ -7,6 +7,14 @@
 
 🇵🇱 [Ten dokument po polsku](README.pl.md) · [Examples with real results](examples/README.md)
 
+
+> **Live demo status.** The analysis engine runs on a Hugging Face Space with
+> paid hardware, and it is paused whenever that balance runs out. When it is,
+> the site loads and says so in the header, but analyses will not complete.
+> Everything in this repository runs locally with no account and no cost — see
+> [Run it yourself](#run-it-yourself). Why the free tier is not an option is in
+> [`docs/deployment.md`](docs/deployment.md).
+
 Mark a document invisibly, find the mark in a document you received, or strip
 it out before passing the document on. Zero-width characters, Unicode tag
 payloads, homoglyph substitution. It also scores how much the writing reads

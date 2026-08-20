@@ -196,7 +196,10 @@ export default function NewAnalysisPage() {
           {status ? <span className="text-sm text-muted">{status}</span> : null}
           {capabilities && !capabilities.engine_reachable ? (
             <span className="text-sm text-warn">
-              The engine is asleep — the first analysis can take up to a minute to wake it.
+              The engine is not responding. It may be waking from idle, which takes under a
+              minute — or it may be down, in which case anything submitted now will sit
+              pending and then fail. Marking, cleaning and credential checks run on the same
+              engine, so they are unavailable too. Analyses already stored are unaffected.
             </span>
           ) : null}
         </div>

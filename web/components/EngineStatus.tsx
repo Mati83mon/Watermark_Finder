@@ -7,8 +7,11 @@ import { api } from '@/lib/api';
 /**
  * Header indicator for engine reachability.
  *
- * A free Space sleeps after inactivity and takes tens of seconds to wake, so
- * "asleep" is a normal state worth showing rather than an error to hide.
+ * An idle Space sleeps and takes tens of seconds to wake, so "not responding"
+ * is often temporary. But it reads the same over HTTP as a Space that has been
+ * paused and will never wake on its own, and the wording must not promise a
+ * recovery it cannot know about: a visitor told "may take a minute" waits
+ * fifteen for a failure instead.
  */
 export function EngineStatus() {
   const [state, setState] = useState<'loading' | 'ok' | 'down'>('loading');
@@ -31,7 +34,7 @@ export function EngineStatus() {
   const presentation = {
     loading: { dot: 'bg-muted', text: 'Checking engine…' },
     ok: { dot: 'bg-ok', text: `Engine ready${version ? ` · v${version}` : ''}` },
-    down: { dot: 'bg-warn', text: 'Engine asleep — first analysis may take a minute' },
+    down: { dot: 'bg-warn', text: 'Engine not responding — analyses may not complete' },
   }[state];
 
   return (
