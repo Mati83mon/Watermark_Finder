@@ -174,8 +174,51 @@ class FeatureSet:
         return [self.values[name] for name in FEATURE_ORDER]
 
 
+#: Fenced code blocks are not writing.
+#:
+#: Measured on this repository's own README: every one of the 69 double-space
+#: runs the typo detector fired on sat inside a ``` block - ASCII diagrams and
+#: aligned output listings. None were in prose, and none were in tables. Left
+#: in, they drove `typo_indicator_rate` to 5.537 and pulled the document from
+#: 23.8% to 13.6%, because the feature reads deliberate alignment as the
+#: accidental double-tap of someone typing.
+#:
+#: Whitespace is only the visible half. Sentence length, word length,
+#: vocabulary and connective density are all meaningless measured over source
+#: code, so a document with a large code sample was having its author's prose
+#: averaged with a language it did not write.
+#:
+#: Indented code is deliberately not stripped: four-space indentation is also
+#: how people lay out plain text, and the double-space detector already ignores
+#: leading whitespace (it requires a non-space on both sides).
+_FENCE_RE = re.compile(r"^\s*(?:```|~~~)")
+
+
+def prose_only(text: str) -> str:
+    """``text`` with fenced code blocks removed, for stylometric measurement.
+
+    Line count is preserved so sentence and paragraph structure around the
+    blocks is unchanged; only the fenced content goes.
+    """
+    out: list[str] = []
+    inside = False
+    for line in text.split("\n"):
+        if _FENCE_RE.match(line):
+            inside = not inside
+            out.append("")
+            continue
+        out.append("" if inside else line)
+    return "\n".join(out)
+
+
 def extract_features(text: str, language: str | None = None) -> FeatureSet:
-    """Compute the full stylometric feature set for ``text``."""
+    """Compute the full stylometric feature set for ``text``.
+
+    Fenced code blocks are excluded first: they are not the author's prose, and
+    counting them measures the layout of a listing rather than how somebody
+    writes. See :func:`prose_only`.
+    """
+    text = prose_only(text)
     language = language or detect_language(text).code
     sentences: list[Span] = split_sentences(text)
     paragraphs: list[Span] = split_paragraphs(text)

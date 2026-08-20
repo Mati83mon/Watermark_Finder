@@ -147,6 +147,34 @@ with every response. The most informative:
 English and Polish marker lists are built in; other languages fall back to the
 English lists, and the response says so.
 
+#### Fenced code blocks are excluded first
+
+Every feature is measured on the document with ``` blocks removed, because a
+listing is not the author's writing.
+
+This was found the hard way, on this repository's own README. All 69 double-space
+runs that `typo_indicator_rate` fired on sat inside fenced blocks — ASCII
+diagrams and aligned output. None were in prose and none were in tables:
+
+```
+original                     13.6%   typo_indicator_rate 5.537
+code blocks removed          23.8%   typo_indicator_rate 0.000
+code blocks + table padding  23.8%   typo_indicator_rate 0.000   (tables add nothing)
+```
+
+Ten points of "human" bought purely by layout. The feature exists to catch the
+accidental double-tap of someone typing; deliberate column alignment is the
+opposite of that, and any document with a code sample — a README, a model card,
+technical notes — collected the bonus regardless of who wrote it.
+
+Whitespace was only the visible half. Sentence length, word length, vocabulary
+and connective density are equally meaningless measured over source code, so a
+document's prose was being averaged with a language its author never wrote.
+
+Indented code is deliberately **not** stripped. Four-space indentation is also
+how people lay out plain text, and the double-space detector already ignores
+leading whitespace — it requires a non-space character on both sides.
+
 ### The model
 
 Ships as a **documented prior**: a logistic model whose coefficients are stated

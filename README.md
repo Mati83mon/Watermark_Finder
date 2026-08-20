@@ -260,11 +260,11 @@ Full contract: [`docs/api-spec.md`](docs/api-spec.md).
 
 ```bash
 npm test                                  # Worker (78) + web (52)
-cd analysis-space && pytest               # engine (151)
+cd analysis-space && pytest               # engine (156)
 python examples/generate.py --verify      # the six examples
 ```
 
-281 tests. The Worker's D1 is a **real** in-memory SQLite database running the
+286 tests. The Worker's D1 is a **real** in-memory SQLite database running the
 production migration files, so the SQL is genuinely executed rather than mocked.
 An end-to-end suite drives the real Worker against the real Python engine:
 

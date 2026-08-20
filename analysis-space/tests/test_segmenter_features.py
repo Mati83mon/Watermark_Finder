@@ -94,3 +94,56 @@ def test_empty_text_does_not_explode():
     features = extract_features("")
     assert features.n_words == 0
     assert all(value == 0.0 for value in features.values.values())
+
+
+class TestCodeBlocksAreNotProse:
+    """Fenced blocks are a listing, not the author's writing.
+
+    Measured on this repository's README: all 69 double-space runs the typo
+    detector fired on were inside ``` blocks - ASCII diagrams and aligned
+    output. None in prose, none in tables. Counting them read deliberate
+    alignment as the accidental double-tap of someone typing, and moved the
+    document's style score by ten points.
+    """
+
+    DOC = (
+        "This paragraph is ordinary prose written by a person.\n"
+        "It runs to a couple of sentences so the features have something to chew on.\n"
+        "\n"
+        "```\n"
+        "MARK  ---------->  DETECT  ---------->  CLEAN\n"
+        "one copy          hidden chars        remove them\n"
+        "```\n"
+        "\n"
+        "And a closing paragraph, also prose.\n"
+    )
+
+    def test_alignment_inside_a_fence_is_not_a_typing_slip(self):
+        assert extract_features(self.DOC).values["typo_indicator_rate"] == 0.0
+
+    def test_the_same_spacing_in_prose_still_counts(self):
+        # Outside a fence the identical run is exactly what the feature is for.
+        slipped = self.DOC.replace(
+            "And a closing paragraph, also prose.",
+            "And a closing  paragraph, also  prose.",
+        )
+        assert extract_features(slipped).values["typo_indicator_rate"] > 0.0
+
+    def test_prose_around_the_block_is_kept(self):
+        from tpl.features import prose_only
+
+        kept = prose_only(self.DOC)
+        assert "ordinary prose" in kept
+        assert "closing paragraph" in kept
+        assert "MARK" not in kept
+
+    def test_line_structure_survives(self):
+        from tpl.features import prose_only
+
+        assert prose_only(self.DOC).count("\n") == self.DOC.count("\n")
+
+    def test_an_unterminated_fence_does_not_swallow_the_document(self):
+        from tpl.features import prose_only
+
+        text = "Real prose here.\n```\ncode\n"
+        assert "Real prose here." in prose_only(text)
