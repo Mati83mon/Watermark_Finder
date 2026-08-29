@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Watermark Finder — runs in your browser</title>
+<link rel="icon" href="favicon.svg">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <h1>Watermark Finder</h1>
+  <p class="lede">
+    Find hidden characters in a document, mark a document so a leak can be traced,
+    or strip the marks out before passing it on. The analysis engine is Python,
+    and it runs <strong>inside this page</strong> — nothing you paste is uploaded
+    anywhere.
+  </p>
+
+  <div id="boot" class="card">
+    <div class="boot"><span class="spinner"></span><span id="boot-text">Loading the analysis engine…</span></div>
+    <p class="muted" style="margin:10px 0 0">
+      First visit downloads a Python runtime (~10 MB) and caches it. Later visits are instant.
+    </p>
+  </div>
+
+  <div id="failed" class="card hidden">
+    <div class="notice" id="failed-text"></div>
+    <p class="muted">The repository runs the same engine locally with no download at all: see the README.</p>
+  </div>
+
+  <div id="app" class="hidden">
+    <div class="tabs" role="tablist">
+      <button role="tab" data-tab="analyse" aria-selected="true">Analyse</button>
+      <button role="tab" data-tab="protect" aria-selected="false">Protect</button>
+      <button role="tab" data-tab="clean" aria-selected="false">Clean</button>
+    </div>
+
+    <!-- ANALYSE -->
+    <section id="tab-analyse">
+      <div class="card">
+        <h2>Analyse a document</h2>
+        <textarea id="a-text" rows="9" placeholder="Paste the text here, or drop a .txt / .md file below."></textarea>
+        <div class="row" style="margin-top:10px">
+          <input type="file" id="a-file" accept=".txt,.md,.text,.csv,.json" class="muted">
+          <span style="flex:1"></span>
+          <span class="muted" id="a-count">0 characters</span>
+          <button id="a-run">Analyse</button>
+        </div>
+      </div>
+      <div id="a-out"></div>
+    </section>
+
+    <!-- PROTECT -->
+    <section id="tab-protect" class="hidden">
+      <div class="card">
+        <h2>Mark one copy per recipient</h2>
+        <p class="muted" style="margin-top:0">
+          Every copy reads identically and carries a different invisible id. If one
+          surfaces where it should not, analyse it and the mark names the copy.
+        </p>
+        <textarea id="p-text" rows="7" placeholder="Paste the confidential document."></textarea>
+        <div style="margin-top:10px">
+          <label class="muted" for="p-recipients">Recipients — one per line</label>
+          <textarea id="p-recipients" rows="4" placeholder="Jan Kowalski&#10;Anna Nowak&#10;Piotr Wisniewski"></textarea>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <label class="muted" for="p-template">Payload</label>
+          <input type="text" id="p-template" value="WF-{index:03d}" style="max-width:220px">
+          <label class="muted" for="p-channel">Carrier</label>
+          <select id="p-channel" style="background:#0e1216;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px">
+            <option value="tag_characters">tag characters</option>
+            <option value="variation_selectors">variation selectors</option>
+            <option value="zero_width_binary">zero-width binary</option>
+          </select>
+          <span style="flex:1"></span>
+          <button id="p-run">Create copies</button>
+        </div>
+      </div>
+      <div id="p-out"></div>
+    </section>
+
+    <!-- CLEAN -->
+    <section id="tab-clean" class="hidden">
+      <div class="card">
+        <h2>Strip hidden characters</h2>
+        <p class="muted" style="margin-top:0">
+          The safe level keeps the invisible characters a document genuinely needs —
+          emoji joiners, the joiners Arabic and the Indic scripts spell words with —
+          and lists every one it kept.
+        </p>
+        <textarea id="c-text" rows="8" placeholder="Paste the document to clean."></textarea>
+        <div class="row" style="margin-top:10px">
+          <label class="muted"><input type="radio" name="c-level" value="safe" checked> safe</label>
+          <label class="muted"><input type="radio" name="c-level" value="aggressive"> aggressive</label>
+          <label class="muted"><input type="checkbox" id="c-homoglyphs"> also rewrite look-alike letters</label>
+          <span style="flex:1"></span>
+          <button id="c-run">Clean</button>
+        </div>
+      </div>
+      <div id="c-out"></div>
+    </section>
+  </div>
+
+  <footer>
+    <p>
+      Stylometric scores describe writing <em>register</em>, not authorship. They are unreliable on
+      short or translated text and must never be the sole basis for an accusation, a grade or a
+      disciplinary decision.
+    </p>
+    <p>
+      Runs entirely in your browser — no account, no upload, no server.
+      Content-credential (C2PA) checking and PDF/DOCX reading need the server build.
+      <a href="https://github.com/Mati83mon/Watermark_Finder">Source</a> ·
+      <a href="https://watermark-finder.pages.dev">Full version</a> · MIT
+    </p>
+  </footer>
+</main>
+<script src="pyodide/pyodide.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
