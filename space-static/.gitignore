@@ -1,0 +1,8 @@
+# Vendored at build time by fetch-pyodide.sh: 13 MB of third-party binaries
+# that would live in this repository's history forever.
+pyodide/
+
+# Copied from analysis-space/tpl by build.py. Committing it would create a
+# second copy of the engine, which is exactly the drift this project has spent
+# a week removing. `build.py --check` fails the build if the two disagree.
+tpl/
