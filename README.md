@@ -59,6 +59,7 @@ detector, with the results each should produce.
 | Zero-width markers | a symbol at fixed intervals, no message | `watermark_detected` 92%, **no payload claimed** |
 | Homoglyphs | Cyrillic `е` inside a Latin word | `watermark_suspected` 65% |
 | Bidi controls, exotic spaces | reordering and spacing channels | reported with offsets |
+| Repetition stamps | a phrase repeated back to back — a white-on-white or behind-the-page watermark, once the PDF has been text-extracted | `watermark_detected` 83% |
 
 These are facts about the bytes of the document, not inferences. Every finding
 comes with the exact character offset, the codepoint, its Unicode name and the
@@ -263,11 +264,11 @@ Full contract: [`docs/api-spec.md`](docs/api-spec.md).
 
 ```bash
 npm test                                  # Worker (78) + web (52)
-cd analysis-space && pytest               # engine (166)
+cd analysis-space && pytest               # engine (172)
 python examples/generate.py --verify      # the six examples
 ```
 
-296 tests. The Worker's D1 is a **real** in-memory SQLite database running the
+302 tests. The Worker's D1 is a **real** in-memory SQLite database running the
 production migration files, so the SQL is genuinely executed rather than mocked.
 An end-to-end suite drives the real Worker against the real Python engine:
 

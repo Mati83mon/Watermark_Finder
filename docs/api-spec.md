@@ -482,7 +482,7 @@ source text exactly.
 | `scores.llm_likelihood.label` | `insufficient_evidence`, `likely_human`, `inconclusive`, `likely_ai`, `very_likely_ai` |
 | `scores.risk.label` | `minimal`, `low`, `medium`, `high`, `critical` |
 | `segments[].label` | `human`, `leaning_human`, `mixed`, `leaning_assistant`, `assistant` |
-| `signals[].category` | `covert_channel`, `obfuscation`, `stylistic` |
+| `signals[].category` | `covert_channel`, `obfuscation`, `structural`, `stylistic` |
 | `*.severity` | `info`, `low`, `medium`, `high`, `critical` |
 
 ### Versioning

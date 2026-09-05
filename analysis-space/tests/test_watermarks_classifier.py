@@ -61,6 +61,66 @@ def test_style_alone_cannot_claim_a_watermark(assistant_text):
     assert result.label in ("clean", "weak_indicators")
 
 
+# --------------------------------------------------------------------------
+# Repetition stamps
+#
+# A watermark drawn behind a page or in white text is invisible when rendered
+# and fully present once the PDF has been through text extraction. It arrives as
+# one phrase repeated back to back, which is a shape prose never takes.
+# --------------------------------------------------------------------------
+_STAMP = "Witaj Tu Sie Ukrylem\n" * 44
+_DOCUMENT = (
+    "Pilka treningowa ProSport X to uniwersalna pilka przeznaczona do rekreacyjnej "
+    "gry na hali, boisku szkolnym oraz na nawierzchniach syntetycznych. Konstrukcja "
+    "zostala zaprojektowana z myslą o komforcie uzytkowania i stabilnym locie. "
+    "Material to syntetyczna powloka, a szycie maszynowe zapewnia trwalosc przy "
+    "codziennym treningu. Pilka nadaje sie dla poczatkujacych i sredniozaawansowanych."
+)
+
+
+def test_repetition_stamp_is_detected_as_byte_evidence():
+    result = analyse_watermarks(preprocess(_STAMP + _DOCUMENT))
+    assert any(signal.id == "repetition_stamp" for signal in result.signals)
+    assert result.basis == "bytes"
+    assert result.label == "watermark_detected"
+
+
+def test_repetition_stamp_beats_the_stylistic_cap():
+    """The whole point: a stamp must not be filed as a capped style hint."""
+    stamped = analyse_watermarks(preprocess(_STAMP + _DOCUMENT))
+    assert stamped.score > 0.45, "0.45 is the ceiling stylistic evidence cannot pass"
+
+
+def test_document_without_the_stamp_stays_clean():
+    result = analyse_watermarks(preprocess(_DOCUMENT))
+    assert not any(signal.id == "repetition_stamp" for signal in result.signals)
+
+
+def test_a_refrain_is_not_a_stamp():
+    """A song repeats its chorus as much as the stamp repeats, but spreads it out."""
+    verse = "Szedlem przez miasto w deszczu i myslalem o tobie ciagle wieczorem\n"
+    chorus = "I nie wroce juz nigdy tam gdzie bylem wczoraj\n"
+    lyrics = (verse + chorus) * 8
+    result = analyse_watermarks(preprocess(lyrics))
+    assert not any(signal.id == "repetition_stamp" for signal in result.signals)
+
+
+def test_a_footer_repeated_on_every_page_is_not_a_stamp():
+    page = (
+        "Raport kwartalny dzialu sprzedazy przedstawia wyniki za okres trzech "
+        "miesiecy oraz porownanie do poprzedniego kwartalu w kazdym regionie.\n"
+        "Poufne - wlasnosc firmy - nie rozpowszechniac\n"
+    )
+    result = analyse_watermarks(preprocess(page * 12))
+    assert not any(signal.id == "repetition_stamp" for signal in result.signals)
+
+
+def test_single_word_filler_is_not_a_stamp():
+    """"na na na na na" carries no phrase, so it says nothing about intent."""
+    result = analyse_watermarks(preprocess("na " * 400 + _DOCUMENT))
+    assert not any(signal.id == "repetition_stamp" for signal in result.signals)
+
+
 def test_signal_dicts_are_serialisable():
     result = analyse_watermarks(preprocess("Text " + encode_zero_width_binary("hi")))
     for signal in result.signals:

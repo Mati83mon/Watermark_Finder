@@ -4,6 +4,30 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+- **Repetition-stamp detection.** A watermark drawn in white text, behind the
+  content or off the page is invisible when rendered and completely present once
+  a PDF has been through text extraction, arriving as one phrase repeated back to
+  back. It is now scored in a new `structural` signal category, which counts as
+  byte evidence and is not subject to the ceiling that caps stylistic hints.
+
+  Contiguity is the discriminator, not the count. Over a calibration set — a song
+  refrain, a footer across twelve pages, a contract clause, a product catalogue,
+  an ebook, this project's own README — every legitimate repetition is spread
+  through the document and produces a longest back-to-back run of one, while a
+  stamped mark ran to 43. Coverage could not separate them: the refrain reached
+  43% against the stamp's 51%.
+
+### Fixed
+
+- A document carrying such a stamp scored 31.5% and `weak_indicators` while the
+  findings list showed the phrase 43 times. The evidence was filed as stylistic
+  and multiplied by the 0.45 cap, so the headline could never reflect what had
+  actually been found. It now reports `watermark_detected` with `basis: bytes`.
+
 ## [1.0.0] — 2026-09-05
 
 First stable release. The application is deployed and working at
