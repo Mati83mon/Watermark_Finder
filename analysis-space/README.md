@@ -28,7 +28,7 @@ substitution and exotic whitespace. Where a payload is present the engine
 decodes it and reports the recovered bytes. These findings are facts about the
 input, not inferences.
 
-**Register (probabilistic).** Twenty stylometric features - sentence-length
+**Register (probabilistic).** Eighteen stylometric features - sentence-length
 burstiness, lexical diversity, connective density, register vocabulary, error
 profile - feed a logistic model that scores how much the text reads like
 unedited assistant output. It ships with a documented coefficient prior and
@@ -59,6 +59,9 @@ Off by default.
 | GET    | `/version`      | Engine version, active style model, metrics.   |
 | GET    | `/capabilities` | Limits and which optional features are active. |
 | POST   | `/analyze`      | Analyse a string.                              |
+| POST   | `/mark`         | One invisibly distinct copy per recipient.     |
+| POST   | `/sanitize`     | Remove carriers, context-aware.                |
+| POST   | `/c2pa`         | Verify a file's content credential.            |
 | POST   | `/extract`      | Extract text from PDF / DOCX / HTML / TXT.     |
 | GET    | `/docs`         | OpenAPI UI.                                    |
 
@@ -97,7 +100,7 @@ Set `TPL_API_TOKEN` as a Space secret and give the Worker the same value.
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
-pytest                 # 80+ tests, no network required
+pytest                 # 166 tests, no network required
 ruff check tpl app.py train.py tests
 uvicorn app:app --reload --port 7860
 ```

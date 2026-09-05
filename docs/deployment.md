@@ -1,10 +1,14 @@
 # Deployment
 
-Three deployments, all on free tiers: the Space (analysis), the Worker (API), the
-Pages project (frontend). Deploy in that order — the Worker needs the Space URL,
-and the frontend needs the Worker URL.
+Three deployments: the Space (analysis), the Worker (API), the Pages project
+(frontend). Deploy in that order — the Worker needs the Space URL, and the
+frontend needs the Worker URL.
 
-Total cost: nothing. No payment method is required for any of the three.
+Everything on Cloudflare stays inside free allowances and needs no payment
+method. The Space is the one component with a plan rule attached; ["Hardware and
+the free tier"](#hardware-and-the-free-tier) below states it exactly, along with
+the options — including a browser-only deployment that removes the server from
+the picture entirely.
 
 ## Live environment
 
@@ -19,20 +23,16 @@ end in production: a document carrying a `wm:PROD-TEST-2026` payload in Unicode
 tag characters came back as `payload_recovered` with the message decoded intact,
 and the source text round-tripped through R2 byte for byte.
 
-### Hardware is not free
+### Hardware and the free tier
 
-Hugging Face no longer hosts Docker Spaces on free `cpu-basic`:
+Hugging Face states the rule plainly:
 
 > Static Spaces are free for everyone, but hosting Gradio and Docker Spaces on
 > free cpu-basic requires a PRO subscription.
 
-So a Docker Space costs either a PRO subscription or paid hardware. This Space
-currently runs on `cpu-upgrade` (8 vCPU / 32 GB) at $0.03 per hour of uptime,
-sleeping after 1 hour of inactivity; sleep is not billed.
-
 The restriction covers **downgrading**, not just creating. The Space settings
 page offers `CPU basic · 2 vCPU · 16 GB · FREE` as a selectable option, but the
-API rejects it on a non-PRO account:
+API rejects it on an account without PRO:
 
 ```console
 $ curl -X POST -H "authorization: Bearer $HF_TOKEN" \
@@ -46,7 +46,9 @@ cpu-basic. Pause it instead to stop hardware charges, or subscribe."}
 The Space is unaffected by a rejected request - it stays `RUNNING` on its
 current hardware - so this is safe to try before committing to a plan.
 
-The engine does not need that machine. Measured on the deployed code:
+The deployed engine runs on `cpu-basic`, which carries no hourly cost.
+
+Nothing in this code needs more than that. Measured on the deployed code:
 
 ```
 RSS after boot              49.3 MB      # 16 GB tier is ~330x this
@@ -58,16 +60,16 @@ forensic, 52 kB            321   ms
 No torch, no transformers - both are commented out in `requirements.txt`, and
 `distilgpt2` appears in the Space metadata only because the disabled perplexity
 module names it. The runtime is FastAPI plus scikit-learn. `Dockerfile` has
-targeted `cpu-basic` from the first commit; `cpu-upgrade` is forced by Hugging
-Face's plan rules, not by anything this code does.
+targeted `cpu-basic` from the first commit: anything larger is a consequence of
+Hugging Face's plan rules, not of anything this code needs.
 
-The options:
+The options for your own deployment:
 
 | Option | Cost | Note |
 | --- | --- | --- |
-| Keep `cpu-upgrade` | $0.03/h awake | Shortening the sleep timer cuts idle cost, at the price of more cold starts |
-| PRO subscription | $9/month | Unlocks free `cpu-basic`, which is ample |
-| Pause the Space | free | Stops billing, but the engine is unreachable and the app cannot analyse anything |
+| PRO account | monthly fee | Unlocks free `cpu-basic`, which is ample — no hourly charge after that |
+| Paid hardware | hourly while awake | Sleep is not billed; a shorter sleep timer cuts idle cost at the price of more cold starts |
+| [Browser build](../space-static/) on a static Space | free on any account | No server, so nothing to bill. Loses C2PA and PDF/DOCX extraction — see its README |
 | Host the engine elsewhere | free tiers exist | Only `ANALYSIS_SPACE_URL` changes; nothing else moves |
 
 A cold start is not a failure case: the Worker retries a stalled job on a
@@ -87,8 +89,9 @@ allowances.
 2. Owner: `Mati83moni` · Name: `text-provenance-lab` · SDK: **Docker** ·
    Visibility: your choice.
 
-Hardware: see "Hardware is not free" above - `cpu-basic` requires PRO for Docker
-Spaces, so the choice is a subscription or paid hardware.
+Hardware: see ["Hardware and the free tier"](#hardware-and-the-free-tier) above -
+free `cpu-basic` requires PRO for a Docker Space, so the choice is an account
+with PRO, paid hardware, or the browser build.
 
 The name matters: the Worker is already configured for
 `https://mati83moni-text-provenance-lab.hf.space`, which is the host Hugging Face

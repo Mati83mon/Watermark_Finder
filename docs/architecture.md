@@ -31,6 +31,31 @@
 No component is billed. No request leaves this diagram: the Space performs every
 model computation locally and calls nothing outbound.
 
+### The second shape: no server at all
+
+[`space-static/`](../space-static/) deploys the same analysis code as a static
+page. Pyodide compiles the engine to WebAssembly and the browser runs it in the
+tab, so the diagram above collapses to one box and the document is never
+transmitted anywhere.
+
+```
+                    browser
+                       │
+              ┌────────▼─────────┐
+              │  static hosting  │   HTML, JS, Pyodide, tpl/*.py
+              └────────┬─────────┘
+                       │  everything below runs in the page
+              ┌────────▼─────────┐
+              │ the same Python  │   analyse · mark · sanitize
+              └──────────────────┘
+```
+
+The modules are copied from `analysis-space/tpl/`, never rewritten, so both
+shapes apply identical rules. Three modules stay behind: `api.py` (FastAPI),
+`provenance.py` (C2PA needs a native library) and `extraction.py` (PDF/DOCX), so
+the browser build verifies no content credentials and reads no PDFs. CI proves
+that boundary holds by importing the bundle with nothing installed.
+
 ## Why the pieces are where they are
 
 **Analysis in the Space, not the Worker.** The Worker free plan allows 10 ms of

@@ -149,7 +149,12 @@ is honest.
 ### Features
 
 Twenty length-invariant features, each documented in `FEATURE_DOCS` and returned
-with every response. The most informative:
+with every response. Eighteen of them carry a coefficient in the prior model;
+`hapax_ratio` and `mattr` are measured and reported but do not move the score,
+which is why the counts differ between this document and the feature list shown
+in the app.
+
+The most informative:
 
 - `sentence_length_cv` — burstiness. Human prose alternates short and long
   sentences; generated text is markedly more uniform. The strongest single
