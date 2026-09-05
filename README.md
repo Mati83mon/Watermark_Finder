@@ -183,6 +183,7 @@ sets out every known failure mode; the app repeats them wherever numbers appear.
 | --- | --- |
 | [`analysis-space/`](analysis-space/) | FastAPI engine — Unicode scanning, payload decoders, canary marking, context-aware sanitising, C2PA verification, stylometry, report builder. Runs on a Hugging Face Space. |
 | [`worker/`](worker/) | Cloudflare Worker API — routing, validation, auth, rate limiting, job orchestration, D1/KV/R2. Marking, sanitising and credential checks are stateless and store nothing. |
+| [`space-static/`](space-static/) | The same engine compiled to WebAssembly, running under Pyodide. The page loads the Python and analyses the document in the tab — nothing is uploaded, and no server is involved. `build.py` copies the modules from `analysis-space/tpl`; they are never edited here. |
 | [`web/`](web/) | Next.js 14 frontend, static export, Cloudflare Pages. |
 | [`shared/`](shared/) | TypeScript types shared by Worker and frontend. |
 | [`examples/`](examples/README.md) | Six watermarked documents with measured results. |

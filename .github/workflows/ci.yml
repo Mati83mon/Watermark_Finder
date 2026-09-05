@@ -52,6 +52,28 @@ jobs:
           print('service boots')
           "
 
+  browser:
+    name: Browser bundle (Pyodide surface)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # No `pip install` on purpose. The page loads Pyodide's standard library
+      # and nothing else, so this job runs the bundle against an interpreter
+      # with nothing installed - the same floor the browser has.
+      - name: Copy the engine into the browser bundle
+        run: python space-static/build.py
+
+      - name: Verify the copy matches the engine
+        run: python space-static/build.py --check
+
+      - name: Run the bundle the way the page does
+        run: python space-static/build.py --verify
+
   node:
     name: Worker and web (Node)
     runs-on: ubuntu-latest
