@@ -87,6 +87,67 @@ generated report.
 
 ---
 
+## Repetition stamps (deterministic)
+
+A watermark does not have to be an invisible character. Draw text in white on a
+white page, put it behind the content, or push it off the visible area, and it is
+invisible when rendered and completely present once the file has been through
+text extraction. What arrives is one phrase repeated back to back, dozens of
+times, before the real content starts.
+
+This is byte evidence, not a style hint: the words are literally in the document
+and the count is exact. It is scored in the `structural` category, alongside the
+covert channels, and is not subject to the 0.45 ceiling that caps stylistic
+signals.
+
+### Why contiguity, and not the count
+
+Repetition on its own means nothing. Plenty of ordinary documents repeat a phrase
+many times, so a threshold on the count or on the share of the document produces
+false positives on honest text.
+
+Measured over a calibration set:
+
+| Document | Repeats | Coverage | Longest run |
+| --- | --- | --- | --- |
+| Stamped watermark | 43 | 51% | **43** |
+| Song with a refrain | 14 | 43% | 1 |
+| 15-item product catalogue | 15 | 29% | 1 |
+| Contract with a repeated clause | 3 | 15% | 1 |
+| Footer across 12 pages | 12 | 14% | 1 |
+| Ordinary prose | 1 | 3% | 1 |
+
+Coverage cannot separate the stamp from the song: 51% against 43% is far too
+close to draw a line through. **Contiguity separates them completely.** Prose puts
+other words between its repetitions; a stamp does not. Every legitimate case in
+the set produces a longest back-to-back run of exactly one.
+
+The run therefore carries the test on its own: at least six consecutive
+repetitions, of a phrase with at least three distinct words. The second condition
+exists so that filler like `na na na na na` is ignored — a single repeated token
+says nothing about intent.
+
+Coverage is reported as evidence but is **not** a threshold. A stamp appended to
+a long report covers little of it and is a stamp all the same; gating on its share
+of the document would miss precisely that case.
+
+Every repeated phrase is examined, not only the most frequent one. A footer
+printed on twelve pages outnumbers a six-repeat stamp, so testing the commonest
+phrase alone would let ordinary page furniture mask a mark sitting beside it.
+
+### What this cannot do
+
+It sees the extraction layer, not the page. It cannot tell you whether the text
+was hidden deliberately or merely rendered oddly, and it cannot see a watermark
+that is a **raster image** rather than text — that leaves no trace in the
+extracted characters at all.
+
+It also cannot distinguish a stamp from a document that genuinely consists of one
+sentence repeated, such as a printing test or a placeholder file. The finding
+reports what was counted and where; the interpretation is the reader's.
+
+---
+
 ## Content credentials (cryptographic)
 
 C2PA is a signed manifest embedded in a file recording what produced it and what

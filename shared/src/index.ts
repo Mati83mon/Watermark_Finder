@@ -14,7 +14,16 @@ export type AnalysisStatus = 'pending' | 'running' | 'done' | 'error';
 
 export type Severity = 'info' | 'low' | 'medium' | 'high' | 'critical';
 
-export type SignalCategory = 'covert_channel' | 'obfuscation' | 'stylistic';
+/**
+ * `structural` is byte evidence like the other two hard categories, not a style
+ * hint: a phrase stamped back to back through a document, which is how a visual
+ * watermark looks once a PDF has been through text extraction.
+ */
+export type SignalCategory =
+  | 'covert_channel'
+  | 'obfuscation'
+  | 'structural'
+  | 'stylistic';
 
 export type WatermarkBasis = 'bytes' | 'stylistic' | 'none';
 
@@ -158,11 +167,12 @@ export interface AnalysisResult {
       label: WatermarkLabel;
       confidence: Confidence;
       /**
-       * Where the number came from. `bytes` means a covert-channel or
-       * obfuscation signal fired and the score rests on characters actually
-       * present in the document. `stylistic` means nothing was found in the
-       * bytes and the score is a capped stylistic hint. `none` means no signal
-       * fired. Callers must not describe a `stylistic` score as deterministic.
+       * Where the number came from. `bytes` means a covert-channel,
+       * obfuscation or structural signal fired and the score rests on what is
+       * actually in the document - characters that do not render, or a phrase
+       * stamped across it. `stylistic` means nothing was found in the bytes and
+       * the score is a capped stylistic hint. `none` means no signal fired.
+       * Callers must not describe a `stylistic` score as deterministic.
        */
       basis: WatermarkBasis;
     };

@@ -9,6 +9,13 @@ text. Two very different families are scored and kept apart in the output:
     payload is close to proof; a bare cluster of invisible characters is strong
     evidence.
 
+``structural``
+    Text that is visibly present but laid out the way a stamp is, not the way
+    prose is: the same phrase repeated back to back dozens of times. This is how
+    a visual watermark - white on white, behind the content, off the page - looks
+    once a PDF has been through text extraction. The characters are ordinary and
+    the count is exact, so this is byte evidence, not a stylistic guess.
+
 ``stylistic``
     Fingerprints that survive copy-paste but are not proof of anything on their
     own: typographic punctuation, uniform structure, n-gram recycling. These are
@@ -34,6 +41,7 @@ from .unicode_tables import (
 
 CATEGORY_COVERT = "covert_channel"
 CATEGORY_OBFUSCATION = "obfuscation"
+CATEGORY_STRUCTURAL = "structural"
 CATEGORY_STYLISTIC = "stylistic"
 
 SEVERITY_ORDER = ("info", "low", "medium", "high", "critical")
@@ -351,6 +359,109 @@ def _ngram_repetition_signal(text: str, n: int = 5) -> Signal | None:
     )
 
 
+#: A repetition stamp is one phrase repeated *back to back*. That is the shape a
+#: visual watermark takes once a PDF has been through text extraction: white on
+#: white, behind the content or off the page, invisible when rendered and
+#: perfectly present in the text layer.
+#:
+#: Contiguity is what separates it from legitimate repetition, and the margin is
+#: not close. Measured over a calibration set - a song refrain, a footer repeated
+#: across twelve pages, a contract clause, a fifteen-item product catalogue, an
+#: ebook, this project's own README - every one of them repeats phrases, and not
+#: one produces a back-to-back run longer than a single occurrence. Prose puts
+#: other words between its repetitions. A stamp does not.
+#:
+#: Counting alone would not do: the song refrain reached 43% coverage against the
+#: watermark's 51%, which is far too close to draw a line through.
+#:
+#: So the run carries the test on its own. Six consecutive verbatim repetitions is
+#: an enormous margin over the one that every honest document in the set produced,
+#: and coverage is reported as evidence rather than used as a gate: a stamp
+#: appended to a long report covers little of it and is still a stamp. The phrase
+#: must carry at least three distinct words, so that filler like "na na na na na"
+#: is ignored - a single repeated token says nothing about intent.
+_STAMP_MIN_RUN = 6
+_STAMP_MIN_DISTINCT_WORDS = 3
+
+
+def _longest_back_to_back_run(occurrences: Sequence[int], span: int) -> int:
+    """Longest chain of occurrences repeating at one constant, tight interval."""
+    best = run = 1
+    period: int | None = None
+    # Deliberately ragged: the pairing walks consecutive occurrences.
+    for previous, current in zip(occurrences, occurrences[1:], strict=False):
+        step = current - previous
+        if step <= span and (period is None or step == period):
+            period = step
+            run += 1
+            best = max(best, run)
+        else:
+            period = step if step <= span else None
+            run = 2 if step <= span else 1
+    return best
+
+
+def _repetition_stamp_signal(text: str, n: int = 5) -> Signal | None:
+    tokens = [w.lower() for w in words(text)]
+    # Room for the shortest stamp the threshold below can accept: six
+    # repetitions of an n-word phrase. Anything shorter cannot qualify.
+    if len(tokens) < n * _STAMP_MIN_RUN:
+        return None
+
+    positions: dict[tuple[str, ...], list[int]] = {}
+    for index in range(len(tokens) - n + 1):
+        positions.setdefault(tuple(tokens[index : index + n]), []).append(index)
+
+    # Every repeated phrase is a candidate, not just the most frequent one. A
+    # footer repeated on twelve pages outnumbers a stamp of six, so picking the
+    # commonest phrase and testing only that would let any page furniture hide a
+    # mark sitting right beside it.
+    best: tuple[int, float, tuple[str, ...], list[int]] | None = None
+    for gram, occurrences in positions.items():
+        if len(occurrences) < _STAMP_MIN_RUN:
+            continue
+        # "na na na na na" and other filler repeats a single token, which says
+        # nothing about intent. A stamp carries a phrase.
+        if len(set(gram)) < _STAMP_MIN_DISTINCT_WORDS:
+            continue
+        run = _longest_back_to_back_run(occurrences, n)
+        if run < _STAMP_MIN_RUN:
+            continue
+        covered: set[int] = set()
+        for start in occurrences:
+            covered.update(range(start, start + n))
+        candidate = (run, len(covered) / len(tokens), gram, occurrences)
+        if best is None or candidate[:2] > best[:2]:
+            best = candidate
+
+    if best is None:
+        return None
+
+    run, coverage, gram, occurrences = best
+    score = min(0.92, 0.62 + coverage * 0.45 + (min(run, 40) - _STAMP_MIN_RUN) / 120)
+    phrase = " ".join(gram)
+    return Signal(
+        id="repetition_stamp",
+        category=CATEGORY_STRUCTURAL,
+        title="Phrase stamped repeatedly through the document",
+        description=(
+            f'"{phrase}" repeats {len(occurrences)} times, {run} of them back to back, '
+            f"covering {coverage:.0%} of the words. Writing does not repeat itself this "
+            "way; a document does when a mark has been stamped across it. A watermark "
+            "drawn behind the page or in white text is invisible when rendered and fully "
+            "present once the text is extracted, which is what this looks like."
+        ),
+        score=score,
+        weight=0.9,
+        severity=_severity_for(score),
+        evidence=[
+            Evidence("repetition", f'"{phrase}" x{len(occurrences)}'),
+            Evidence("repetition", f"longest back-to-back run: {run}"),
+            Evidence("repetition", f"share of document covered: {coverage:.1%}"),
+        ],
+    )
+
+
 _HEADING_RE = re.compile(r"^\s*(#{1,6}\s+\S|\*\*[^*\n]+\*\*\s*$)", re.MULTILINE)
 
 
@@ -432,12 +543,21 @@ def analyse_watermarks(pre: PreprocessResult) -> WatermarkResult:
         signal = detector(pre)
         if signal is not None:
             signals.append(signal)
-    for detector in (_typography_signal, _ngram_repetition_signal, _structure_signal):
+    for detector in (
+        _repetition_stamp_signal,
+        _typography_signal,
+        _ngram_repetition_signal,
+        _structure_signal,
+    ):
         signal = detector(text)
         if signal is not None:
             signals.append(signal)
 
-    hard = [s for s in signals if s.category in (CATEGORY_COVERT, CATEGORY_OBFUSCATION)]
+    hard = [
+        s
+        for s in signals
+        if s.category in (CATEGORY_COVERT, CATEGORY_OBFUSCATION, CATEGORY_STRUCTURAL)
+    ]
     soft = [s for s in signals if s.category == CATEGORY_STYLISTIC]
 
     hard_score = 0.0

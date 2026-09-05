@@ -59,6 +59,7 @@ dokumentów, po jednym na detektor, z wynikami, jakie każdy powinien dać.
 | Znaczniki zerowej szerokości | symbol w stałych odstępach, bez treści | `watermark_detected` 92%, **bez zmyślonego payloadu** |
 | Homoglify | cyrylickie `е` wewnątrz łacińskiego wyrazu | `watermark_suspected` 65% |
 | Kontrolki bidi, egzotyczne spacje | kanały przez kolejność i odstępy | zgłaszane z offsetami |
+| Stemple z powtórzeń | fraza powtórzona blokiem — znak wodny białym tekstem albo pod treścią, widoczny dopiero po ekstrakcji tekstu z PDF | `watermark_detected` 83% |
 
 To są fakty o bajtach dokumentu, nie domysły. Każde znalezisko ma dokładny
 offset znaku, jego kod, nazwę Unicode i kontekst wokół.
@@ -264,11 +265,11 @@ Pełny kontrakt: [`docs/api-spec.md`](docs/api-spec.md).
 
 ```bash
 npm test                                  # Worker (78) + web (52)
-cd analysis-space && pytest               # silnik (166)
+cd analysis-space && pytest               # silnik (174)
 python examples/generate.py --verify      # sześć przykładów
 ```
 
-296 testów. D1 w testach Workera to **prawdziwa** baza SQLite w pamięci,
+304 testy. D1 w testach Workera to **prawdziwa** baza SQLite w pamięci,
 wykonująca produkcyjne pliki migracji, więc SQL jest naprawdę uruchamiany, a nie
 zamockowany. Osobny zestaw end-to-end steruje prawdziwym Workerem przeciwko
 prawdziwemu silnikowi w Pythonie:
