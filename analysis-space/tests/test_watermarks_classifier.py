@@ -115,6 +115,33 @@ def test_a_footer_repeated_on_every_page_is_not_a_stamp():
     assert not any(signal.id == "repetition_stamp" for signal in result.signals)
 
 
+def test_a_short_document_that_is_entirely_a_stamp_is_scored():
+    """Six repetitions is the threshold, so six repetitions must be reachable.
+
+    The length guard used to demand 40 words, which rejected a 30-word document
+    made of nothing but the stamp before the detector ever ran.
+    """
+    result = analyse_watermarks(preprocess("Witaj Tu Sie Ukrylem Teraz " * 6))
+    assert any(signal.id == "repetition_stamp" for signal in result.signals)
+
+
+def test_a_frequent_footer_cannot_hide_a_stamp_beside_it():
+    """The commonest phrase is not necessarily the stamp.
+
+    A footer on twelve pages outnumbers a six-repeat stamp. Testing only the
+    most frequent n-gram let any page furniture mask a mark sitting next to it.
+    """
+    page = (
+        "Raport kwartalny dzialu sprzedazy przedstawia wyniki za okres trzech "
+        "miesiecy oraz porownanie do poprzedniego kwartalu w kazdym regionie.\n"
+        "Poufne wlasnosc firmy nie rozpowszechniac dalej\n"
+    )
+    stamped = page * 12 + "\n" + "Witaj Tu Sie Ukrylem Teraz " * 6
+    result = analyse_watermarks(preprocess(stamped))
+    assert any(signal.id == "repetition_stamp" for signal in result.signals)
+    assert result.basis == "bytes"
+
+
 def test_single_word_filler_is_not_a_stamp():
     """"na na na na na" carries no phrase, so it says nothing about intent."""
     result = analyse_watermarks(preprocess("na " * 400 + _DOCUMENT))

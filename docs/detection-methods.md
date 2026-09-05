@@ -122,10 +122,18 @@ close to draw a line through. **Contiguity separates them completely.** Prose pu
 other words between its repetitions; a stamp does not. Every legitimate case in
 the set produces a longest back-to-back run of exactly one.
 
-The signal therefore requires a run of at least six consecutive repetitions, at
-least 15% coverage, and a phrase of at least three distinct words — the last
-condition so that filler like `na na na na na` is ignored, since a single
-repeated token says nothing about intent.
+The run therefore carries the test on its own: at least six consecutive
+repetitions, of a phrase with at least three distinct words. The second condition
+exists so that filler like `na na na na na` is ignored — a single repeated token
+says nothing about intent.
+
+Coverage is reported as evidence but is **not** a threshold. A stamp appended to
+a long report covers little of it and is a stamp all the same; gating on its share
+of the document would miss precisely that case.
+
+Every repeated phrase is examined, not only the most frequent one. A footer
+printed on twelve pages outnumbers a six-repeat stamp, so testing the commonest
+phrase alone would let ordinary page furniture mask a mark sitting beside it.
 
 ### What this cannot do
 

@@ -265,11 +265,11 @@ Pełny kontrakt: [`docs/api-spec.md`](docs/api-spec.md).
 
 ```bash
 npm test                                  # Worker (78) + web (52)
-cd analysis-space && pytest               # silnik (172)
+cd analysis-space && pytest               # silnik (174)
 python examples/generate.py --verify      # sześć przykładów
 ```
 
-302 testy. D1 w testach Workera to **prawdziwa** baza SQLite w pamięci,
+304 testy. D1 w testach Workera to **prawdziwa** baza SQLite w pamięci,
 wykonująca produkcyjne pliki migracji, więc SQL jest naprawdę uruchamiany, a nie
 zamockowany. Osobny zestaw end-to-end steruje prawdziwym Workerem przeciwko
 prawdziwemu silnikowi w Pythonie:

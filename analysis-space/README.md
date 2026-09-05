@@ -100,7 +100,7 @@ Set `TPL_API_TOKEN` as a Space secret and give the Worker the same value.
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
-pytest                 # 172 tests, no network required
+pytest                 # 174 tests, no network required
 ruff check tpl app.py train.py tests
 uvicorn app:app --reload --port 7860
 ```

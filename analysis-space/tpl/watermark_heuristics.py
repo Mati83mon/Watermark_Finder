@@ -373,8 +373,14 @@ def _ngram_repetition_signal(text: str, n: int = 5) -> Signal | None:
 #:
 #: Counting alone would not do: the song refrain reached 43% coverage against the
 #: watermark's 51%, which is far too close to draw a line through.
+#:
+#: So the run carries the test on its own. Six consecutive verbatim repetitions is
+#: an enormous margin over the one that every honest document in the set produced,
+#: and coverage is reported as evidence rather than used as a gate: a stamp
+#: appended to a long report covers little of it and is still a stamp. The phrase
+#: must carry at least three distinct words, so that filler like "na na na na na"
+#: is ignored - a single repeated token says nothing about intent.
 _STAMP_MIN_RUN = 6
-_STAMP_MIN_COVERAGE = 0.15
 _STAMP_MIN_DISTINCT_WORDS = 3
 
 
@@ -397,32 +403,41 @@ def _longest_back_to_back_run(occurrences: Sequence[int], span: int) -> int:
 
 def _repetition_stamp_signal(text: str, n: int = 5) -> Signal | None:
     tokens = [w.lower() for w in words(text)]
-    if len(tokens) < n * 8:
+    # Room for the shortest stamp the threshold below can accept: six
+    # repetitions of an n-word phrase. Anything shorter cannot qualify.
+    if len(tokens) < n * _STAMP_MIN_RUN:
         return None
 
     positions: dict[tuple[str, ...], list[int]] = {}
     for index in range(len(tokens) - n + 1):
         positions.setdefault(tuple(tokens[index : index + n]), []).append(index)
 
-    gram, occurrences = max(positions.items(), key=lambda item: len(item[1]))
-    if len(occurrences) < _STAMP_MIN_RUN:
-        return None
-    # "na na na na na" and other filler repeats a single token, which says
-    # nothing about intent. A stamp carries a phrase.
-    if len(set(gram)) < _STAMP_MIN_DISTINCT_WORDS:
+    # Every repeated phrase is a candidate, not just the most frequent one. A
+    # footer repeated on twelve pages outnumbers a stamp of six, so picking the
+    # commonest phrase and testing only that would let any page furniture hide a
+    # mark sitting right beside it.
+    best: tuple[int, float, tuple[str, ...], list[int]] | None = None
+    for gram, occurrences in positions.items():
+        if len(occurrences) < _STAMP_MIN_RUN:
+            continue
+        # "na na na na na" and other filler repeats a single token, which says
+        # nothing about intent. A stamp carries a phrase.
+        if len(set(gram)) < _STAMP_MIN_DISTINCT_WORDS:
+            continue
+        run = _longest_back_to_back_run(occurrences, n)
+        if run < _STAMP_MIN_RUN:
+            continue
+        covered: set[int] = set()
+        for start in occurrences:
+            covered.update(range(start, start + n))
+        candidate = (run, len(covered) / len(tokens), gram, occurrences)
+        if best is None or candidate[:2] > best[:2]:
+            best = candidate
+
+    if best is None:
         return None
 
-    run = _longest_back_to_back_run(occurrences, n)
-    if run < _STAMP_MIN_RUN:
-        return None
-
-    covered: set[int] = set()
-    for start in occurrences:
-        covered.update(range(start, start + n))
-    coverage = len(covered) / len(tokens)
-    if coverage < _STAMP_MIN_COVERAGE:
-        return None
-
+    run, coverage, gram, occurrences = best
     score = min(0.92, 0.62 + coverage * 0.45 + (min(run, 40) - _STAMP_MIN_RUN) / 120)
     phrase = " ".join(gram)
     return Signal(
