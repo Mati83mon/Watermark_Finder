@@ -184,6 +184,7 @@ pokazuje liczby.
 | --- | --- |
 | [`analysis-space/`](analysis-space/) | Silnik FastAPI — skanowanie Unicode, dekodery payloadów, znakowanie canary, sanityzacja świadoma kontekstu, weryfikacja C2PA, stylometria, generator raportów. Działa na Hugging Face Space. |
 | [`worker/`](worker/) | API na Cloudflare Worker — routing, walidacja, autoryzacja, rate limiting, orkiestracja zadań, D1/KV/R2. Znakowanie, sanityzacja i sprawdzanie poświadczeń są bezstanowe i nic nie zapisują. |
+| [`space-static/`](space-static/) | Ten sam silnik skompilowany do WebAssembly, uruchamiany przez Pyodide. Strona ładuje Pythona i analizuje dokument w karcie przeglądarki — nic nie jest wysyłane, żaden serwer nie bierze w tym udziału. `build.py` kopiuje moduły z `analysis-space/tpl`; tutaj się ich nie edytuje. |
 | [`web/`](web/) | Frontend Next.js 14, eksport statyczny, Cloudflare Pages. |
 | [`shared/`](shared/) | Typy TypeScript wspólne dla Workera i frontendu. |
 | [`examples/`](examples/README.pl.md) | Sześć dokumentów ze znakami wodnymi i zmierzonymi wynikami. |
