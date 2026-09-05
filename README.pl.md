@@ -1,6 +1,8 @@
 # Watermark Finder
 
-**→ [watermark-finder.pages.dev](https://watermark-finder.pages.dev) — działa na żywo, bez rejestracji, bez instalacji**
+**→ [watermark-finder.pages.dev](https://watermark-finder.pages.dev) — w pełni działająca aplikacja webowa. Bez rejestracji, bez instalacji.**
+
+**→ [Wersja przeglądarkowa](https://huggingface.co/spaces/Mati83moni/watermark-finder) — ten sam silnik pod WebAssembly. Dokument nie opuszcza Twojej karty.**
 
 [![CI](https://github.com/Mati83mon/Watermark_Finder/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Mati83mon/Watermark_Finder/actions/workflows/ci.yml)
 [![Licencja: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -276,10 +278,15 @@ cd analysis-space && TPL_API_TOKEN=e2e-secret uvicorn app:app --port 7860 &
 cd worker && npx tsx test/e2e.manual.ts   # 37 sprawdzenia
 ```
 
-CI uruchamia wszystkie cztery zestawy przy każdym pushu, na każdej gałęzi. Dwa
-workflowy wdrożeniowe są osobne i bramkowane: bez poświadczeń do Cloudflare albo
-Hugging Face pomijają się z wyjaśnieniem w podsumowaniu przebiegu, zamiast paść.
-Dzięki temu fork tego repozytorium pokazuje zieloną odznakę CI i żadnych
+CI uruchamia wszystkie cztery zestawy przy każdym pushu, na każdej gałęzi, i
+osobno sprawdza, czy pakiet przeglądarkowy nadal stoi o własnych siłach —
+`space-static/build.py --verify` przepuszcza znakowanie, analizę i sanityzację
+przez interpreter bez żadnych doinstalowanych bibliotek, więc zależność, której
+WebAssembly nie załaduje, padnie tam, a nie w karcie odwiedzającego.
+
+Dwa workflowy wdrożeniowe są osobne i bramkowane: bez poświadczeń do Cloudflare
+albo Hugging Face pomijają się z wyjaśnieniem w podsumowaniu przebiegu, zamiast
+paść. Dzięki temu fork tego repozytorium pokazuje zieloną odznakę CI i żadnych
 widmowych błędów wdrożenia.
 
 ---
@@ -287,10 +294,12 @@ widmowych błędów wdrożenia.
 ## Koszty
 
 Wszystko na Cloudflare — Pages, Workers, D1, KV, R2 — mieści się w darmowych
-limitach. Jedno zastrzeżenie: Hugging Face nie hostuje już Docker Spaces na
-darmowym `cpu-basic`, a ograniczenie obejmuje też **zejście** istniejącego
-Space'a na darmowy tier, nie tylko zakładanie nowego — API odrzuca to wprost bez
-subskrypcji PRO. Silnik wymaga więc albo PRO, albo płatnego hardware.
+limitach.
+
+Hugging Face ma jedną regułę, którą warto znać przed wdrożeniem własnej kopii:
+statyczne Space'y są darmowe dla każdego, ale Gradio i Docker Space na darmowym
+`cpu-basic` wymagają konta PRO, a ograniczenie obejmuje też **zejście**
+istniejącego Space'a na darmowy tier, nie tylko zakładanie nowego.
 
 To reguła rozliczeniowa, nie wymaganie zasobowe. Zmierzone na wdrożonym kodzie:
 
@@ -299,8 +308,11 @@ RSS po starcie            49.3 MB     # darmowe 16 GB to ~330x tyle
 forensic, 1.4 kB           8.2 ms     # uvicorn --workers 1, więc 2 vCPU wystarczą
 ```
 
-[`docs/deployment.md`](docs/deployment.md) zawiera dokładny błąd z API i cztery
-możliwe opcje.
+Wersja przeglądarkowa omija ten problem w całości: statyczny Space nie kosztuje
+nic na żadnym koncie, a analiza działa w karcie odwiedzającego, nie na serwerze.
+
+[`docs/deployment.md`](docs/deployment.md) zawiera dokładną odpowiedź API i
+dostępne opcje.
 
 ---
 

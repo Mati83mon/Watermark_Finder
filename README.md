@@ -1,6 +1,8 @@
 # Watermark Finder
 
-**→ [watermark-finder.pages.dev](https://watermark-finder.pages.dev) — live, no signup, nothing to install**
+**→ [watermark-finder.pages.dev](https://watermark-finder.pages.dev) — a fully working web application. No signup, nothing to install.**
+
+**→ [Browser build](https://huggingface.co/spaces/Mati83moni/watermark-finder) — the same engine under WebAssembly. The document never leaves your tab.**
 
 [![CI](https://github.com/Mati83mon/Watermark_Finder/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Mati83mon/Watermark_Finder/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -274,20 +276,27 @@ cd analysis-space && TPL_API_TOKEN=e2e-secret uvicorn app:app --port 7860 &
 cd worker && npx tsx test/e2e.manual.ts   # 37 checks
 ```
 
-CI runs all four suites on every push, on any branch. The two deploy workflows
-are separate and gated: without Cloudflare or Hugging Face credentials they skip
-with an explanation in the run summary rather than failing, so a fork of this
-repository shows a green CI badge and no phantom deployment errors.
+CI runs all four suites on every push, on any branch, and separately proves the
+browser bundle still stands on its own — `space-static/build.py --verify` drives
+mark, analyse and sanitize in an interpreter with nothing installed, so a
+dependency WebAssembly cannot load fails there rather than in a visitor's tab.
+
+The two deploy workflows are separate and gated: without Cloudflare or Hugging
+Face credentials they skip with an explanation in the run summary rather than
+failing, so a fork of this repository shows a green CI badge and no phantom
+deployment errors.
 
 ---
 
 ## Cost
 
 Everything on Cloudflare — Pages, Workers, D1, KV, R2 — stays inside free
-allowances. One caveat: Hugging Face no longer hosts Docker Spaces on free
-`cpu-basic`, and the restriction covers downgrading an existing Space, not just
-creating one — the API rejects it outright without a PRO subscription. So the
-engine needs either PRO or paid hardware.
+allowances.
+
+Hugging Face has one rule worth knowing before you deploy your own copy: static
+Spaces are free for everyone, but Gradio and Docker Spaces on free `cpu-basic`
+require a PRO account, and the restriction covers downgrading an existing Space,
+not only creating one.
 
 That is a billing rule, not a resource requirement. Measured on the deployed
 code:
@@ -297,7 +306,11 @@ RSS after boot            49.3 MB     # the free 16 GB tier is ~330x this
 forensic, 1.4 kB           8.2 ms     # uvicorn --workers 1, so 2 vCPU is ample
 ```
 
-[`docs/deployment.md`](docs/deployment.md) has the exact API error and the four
+The browser build avoids the question altogether: a static Space costs nothing
+on any account, and the analysis runs in the visitor's tab rather than on a
+server at all.
+
+[`docs/deployment.md`](docs/deployment.md) has the exact API response and the
 options.
 
 ---
